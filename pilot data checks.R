@@ -156,6 +156,13 @@ sum(final_outcome$craver == 1)/nrow(final_outcome)
 
 ### Effect sizes needed for power analysis
 
+# Logistic model
+data_part2 <- data_part[data_part$block_type == 'C', ]
+
+(mean(data_part2$betting_rate[data_part2$treatment == 'control']) -
+    mean(data_part2$betting_rate[data_part2$treatment == 'test']))/
+  sqrt((sd(data_part2$betting_rate[data_part2$treatment == 'control'])^2 + 
+          sd(data_part2$betting_rate[data_part2$treatment == 'test'])^2)/2)
 
 
 
