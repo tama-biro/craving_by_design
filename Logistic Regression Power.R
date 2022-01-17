@@ -49,6 +49,7 @@ mean(power)
 
 # Multi-level model power
 power = c()
+power_bf = c()
 for(i in 1:10) {
   sim_arguments <- list(
     formula = y ~ 1 + reward + uncertainty + treat + session_color + previous_choice +
@@ -70,7 +71,7 @@ for(i in 1:10) {
                                levels = c('Major1', 'Major2', 'Major3', 'Major4'))),
     randomeffect = list(int_id = list(variance = 1, var_level = 2)),
     sample_size = list(level1 = 600, level2 = 200),
-    reg_weights = c(1, rep(log(1.68)*(sqrt(3)/pi), 8), -log(1.68)*(sqrt(3)/pi)),
+    reg_weights = c(1, rep(log(1.68)*(sqrt(3)/pi), 10), -log(1.68)*(sqrt(3)/pi)),
     outcome_type = 'binary'
   )
   
@@ -85,18 +86,28 @@ for(i in 1:10) {
                data = nested_data,
                family = binomial('logit'))
   
+  null_mod = update(model, formula = ~ . -reward:session_color) 
+  
+  BF_BIC = exp((BIC(null_mod) - BIC(model))/2)
+  
   z = summary(model)[[10]][9,3]
   b = summary(model)[[10]][9,1]
   
-  if(abs(z) > 1.96 & b < 0) {
+  if(z < 1.96) {
     power[length(power) + 1] = 1
   } else {
     power[length(power) + 1] = 0
   }
+  
+  if(BF_BIC > 10) {
+    power_bf[length(power_bf) + 1] = 1
+  } else {
+    power_bf[length(power_bf) + 1] = 0
+  }
+  
   print(i)
 }
 
 mean(power)
-
-
+mean(power_bf)
 
