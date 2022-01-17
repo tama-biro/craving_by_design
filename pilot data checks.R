@@ -1,5 +1,6 @@
 
 library(tidyverse)
+library(lme4)
 
 # For the pilot data the following column names are the following variables
 
@@ -16,7 +17,6 @@ data <- read.csv(file.choose())
 data <- data %>%
   mutate(block_type = as.factor(block_type),
          treatment = as.factor(treatment),
-         craver = as.factor(craver),
          exposure_time = NA,
          previous_choice = NA)
 
@@ -53,6 +53,20 @@ data <- data %>%
                                labels = c('Low', 'High')),
          gender = as.factor(gender),
          major = as.factor(major))
+
+# Define craving variable
+craving <- data %>%
+  filter(block_type == 'C') %>%
+  group_by(id) %>%
+  summarize(bet_in_y = sum(choice))
+
+for(i in 1:nrow(craving)) {
+  if(craving$bet_in_y[i] > 1) {
+    data$craver[data$id == craving$id[i]] <- 1
+  } else {
+    data$craver[data$id == craving$id[i]] <- 0
+  }
+}
 
 
 ### Pilot data checks
@@ -91,8 +105,8 @@ ggplot(bet_in_yellow, aes(bet_in_y)) +
 
 ### Betting propensity by craver/block_type
 
-# 16.2% betting by cravers, 0% by optimal in yellow sessions
-# 
+# 18.4% betting by cravers, 0.0783% by optimal in yellow sessions
+# 92.4% betting by cravers, 95.7% by optimal in blue sessions
 data %>%
   group_by(craver, block_type) %>%
   summarize(mean = mean(choice, na.rm = T))
@@ -128,7 +142,7 @@ ggplot(final_outcome, aes(win)) +
 # Earnings
 
 # By craving type
-ggplot(final_outcome, aes(x = craver, y = performance)) +
+ggplot(final_outcome, aes(x = factor(craver), y = performance)) +
   geom_hline(yintercept = 0) +
   geom_boxplot() +
   stat_summary(fun = 'mean', col = 'red') +
@@ -150,7 +164,7 @@ ggplot(final_outcome, aes(x = treatment, y = performance)) +
                    name = 'Treatment') +
   theme_minimal()
 
-# proportion cravers/optimal, 66.23% cravers
+# proportion cravers/optimal, 58.44% cravers
 sum(final_outcome$craver == 1)/nrow(final_outcome)
 
 
@@ -163,12 +177,6 @@ data_part2 <- data_part[data_part$block_type == 'C', ]
     mean(data_part2$betting_rate[data_part2$treatment == 'test']))/
   sqrt((sd(data_part2$betting_rate[data_part2$treatment == 'control'])^2 + 
           sd(data_part2$betting_rate[data_part2$treatment == 'test'])^2)/2)
-
-
-
-### Defining dependent variable for logistic model (test 3)
-
-
 
 
 ### Model specification for main analysis
@@ -202,7 +210,8 @@ model2 <- glmer(choice ~ 1 + reward + uncertainty + treat + session_color + prev
 data_log <- data %>%
   filter(session_color == 'Yellow') %>%
   group_by(id, treat, craving_score, craver, age, gender, major) %>%
-  summarize(betting_rate = mean(choice))
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup()
 
 log_mod = glm(craver ~ 1 + treat + craving_score + accuracy + gender + age + major,
               data = data_log, family = binomial('logit'),
