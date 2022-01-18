@@ -50,7 +50,7 @@ mean(power)
 # Multi-level model power
 power = c()
 power_bf = c()
-for(i in 1:10) {
+for(i in 1:1000) {
   sim_arguments <- list(
     formula = y ~ 1 + reward + uncertainty + treat + session_color + previous_choice +
       age + gender + major + reward:session_color + (1 | id),
@@ -61,7 +61,7 @@ for(i in 1:10) {
                  treat = list(var_type = 'factor', 
                               levels = c('Test', 'Control')),
                  session_color = list(var_type = 'factor', 
-                                    levels = c('High', 'Low')),
+                                    levels = c('Blue', 'Yellow')),
                  previous_choice = list(var_type = 'factor', 
                                         levels = c('Bet', 'Skip')),
                  age = list(var_type = 'continuous', mean = 0, sd = 1),
@@ -86,18 +86,19 @@ for(i in 1:10) {
                data = nested_data,
                family = binomial('logit'))
   
-  null_mod = update(model, formula = ~ . -reward:session_color) 
+  # Check for significance
+  z = summary(model)$coefficients['rewardLow:session_colorYellow','z value']
   
-  BF_BIC = exp((BIC(null_mod) - BIC(model))/2)
-  
-  z = summary(model)[[10]][9,3]
-  b = summary(model)[[10]][9,1]
-  
-  if(z < 1.96) {
+  if(z < -1.96) {
     power[length(power) + 1] = 1
   } else {
     power[length(power) + 1] = 0
   }
+  
+  # Calculate Bayes Factor and check if it's greater than 10
+  null_mod = update(model, formula = ~ . -reward:session_color) 
+  
+  BF_BIC = exp((BIC(null_mod) - BIC(model))/2)
   
   if(BF_BIC > 10) {
     power_bf[length(power_bf) + 1] = 1
