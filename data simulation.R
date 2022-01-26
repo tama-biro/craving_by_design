@@ -1,11 +1,24 @@
-
 library(tidyverse)
 
-# Setting up parameters
-lmbda = 2
-alpha_1 = alpha_2 = 0.8
-beta = 1
-K = 0.5
+# Function to call
+simulate_choice = function(sim_data) {
+  for(i in 1:nrow(sim_data)) {
+    win_chance = sim_data$win_chance[i]
+    loss_chance = 1 - win_chance
+    reward_value = sim_data$reward_value[i]
+    uncertainty = sim_data$uncertainty[i]
+    
+    v = uncertainty*(win_chance*(reward_value-0.7)**alpha_2-lmbda*loss_chance*0.7**alpha_2)
+    
+    p_bet = 1/(1 + exp(beta*v))
+    
+    if(sim_data$craver[i] == 1) {
+      p_bet = K + (1 - K)*p_bet
+    }
+    sim_data$choice[i] = rbinom(1, 1, p_bet)
+  }
+  return(sim_data)
+}
 
 # Setup per repetition
 reward_test = rep(c(rep(1:2, each = 5, times = 2), rep(1, 5), rep(1:2, each = 5, times = 2), rep(2, 5)), 2)
@@ -36,22 +49,35 @@ sim_data = data.frame(ID = rep(1:200, each = 600),
                       craver = c(rep(0, 600*80), rep(1, 600*120)))
 
 # Running simulation - v1.0
-for(i in 1:nrow(sim_data)) {
-  win_chance = sim_data$win_chance[i]
-  loss_chance = 1 - win_chance
-  reward_value = sim_data$reward_value[i]
-  uncertainty = sim_data$uncertainty[i]
+
+# Setting up parameters
+lmbda = 2
+alpha_1 = alpha_2 = 0.8
+beta = c(0.25, 0.5, 1, 2, 5, 10)
+K = c(0.25, 0.33, 0.5, 0.75, 1)
+parameters = expand_grid(beta, K)
+
+
+data_compare = data.frame()
+for(i in 1:nrow(parameters)) {
+  beta = parameters$beta[i]
+  K = parameters$K[i]
   
-  v = uncertainty*(win_chance*(reward_value-0.7)**alpha_2-lmbda*loss_chance*0.7**alpha_2)
+  sim_data = simulate_choice(sim_data)
   
-  p_bet = 1/(1 + exp(beta*v))
+  data_cc = sim_data %>%
+    group_by(win_chance, craver) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup() %>%
+    mutate(beta = beta,
+           K = K)
   
-  if(sim_data$craver[i] == 1) {
-    p_bet = K + (1 - K)*p_bet
-  }
+  data_compare = rbind(data_compare, data_cc)
   
-  sim_data$choice[i] = rbinom(1, 1, p_bet)
-  
+  print(i)
 }
 
+
+
+  
 
