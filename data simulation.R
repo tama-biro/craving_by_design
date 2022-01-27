@@ -84,6 +84,19 @@ for(i in 1:nrow(parameters)) {
 }
 
 
+# Set up labels and plot betting rates
+crave_labs <- c('Optimal', 'Craver')
+names(crave_labs) <- 0:1
+win_labs <- c('Yellow', 'Blue')
+names(win_labs) <- c(0.2, 0.8)
+
+ggplot(data_compare, aes(x = beta, y = betting_rate, color = factor(K))) +
+  geom_line() +
+  facet_grid(vars(win_chance), vars(craver),
+             labeller = labeller(craver = crave_labs,
+                                 win_chance = win_labs)) +
+  theme_minimal()
+
 
 
 
