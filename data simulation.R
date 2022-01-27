@@ -8,9 +8,9 @@ simulate_choice = function(sim_data) {
     reward_value = sim_data$reward_value[i]
     uncertainty = sim_data$uncertainty[i]
     
-    v = uncertainty*(win_chance*(reward_value-0.7)**alpha_2-lmbda*loss_chance*0.7**alpha_2)
+    v = uncertainty*(win_chance*(reward_value-0.7)^alpha_2-lmbda*loss_chance*0.7^alpha_2)
     
-    p_bet = 1/(1 + exp(beta*v))
+    p_bet = 1/(1 + exp(-beta*v))
     
     if(sim_data$craver[i] == 1) {
       p_bet = K + (1 - K)*p_bet
@@ -18,6 +18,12 @@ simulate_choice = function(sim_data) {
     sim_data$choice[i] = rbinom(1, 1, p_bet)
   }
   return(sim_data)
+}
+
+# Function to calculate standard error
+se = function(x) {
+  se = sd(x)/sqrt(length(x))
+  return(se)
 }
 
 # Setup per repetition
@@ -79,5 +85,5 @@ for(i in 1:nrow(parameters)) {
 
 
 
-  
+
 
