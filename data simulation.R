@@ -58,15 +58,14 @@ sim_data = data.frame(ID = rep(1:N, each = 600),
 # Running simulation - v1.0
 
 # Setting up parameters
-alpha = c(0.8, 1)
+alpha = 0.8
 lmbda = seq(1.8, 2.1, 0.05)
-
-alpha = 1
-lmbda = 1
-beta = c(0.25, 0.5, 1, 2, 5, 10, 20, 30)
-K = c(0.1, 0.25, 0.33, 0.5)
+beta = c(10, 20, 30, 40, 50)
+K = c(0.05, 0.1, 0.2)
 parameters = expand_grid(alpha, lmbda, beta, K)
-
+alpha = lmbda = 1
+risk_neutral <- expand_grid(alpha, lmbda, beta, K)
+parameters <- rbind(parameters, risk_neutral)
 
 tm <- proc.time()
 
@@ -112,7 +111,8 @@ ggplot(data_plot, aes(x = beta, y = betting_rate, color = factor(K))) +
   facet_wrap(vars(win_chance), labeller = labeller(win_chance = win_labs)) +
   labs(x = 'Beta', y = 'Betting Rate', title = 'Craver: lambda = 1, alpha 1 and 2 = 1') +
   scale_y_continuous(breaks = seq(0, 1, 0.1)) +
-  theme_minimal()
+  theme_minimal() +
+  theme(panel.grid.major = element_line(color='black'))
 
 ggsave('risk_neutral_craver.png', width = 15, height = 13)
 
