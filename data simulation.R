@@ -60,6 +60,9 @@ sim_data = data.frame(ID = rep(1:N, each = 600),
 # Setting up parameters
 alpha = c(0.8, 1)
 lmbda = seq(1.8, 2.1, 0.05)
+
+alpha = 1
+lmbda = 1
 beta = c(0.25, 0.5, 1, 2, 5, 10, 20, 30)
 K = c(0.1, 0.25, 0.33, 0.5)
 parameters = expand_grid(alpha, lmbda, beta, K)
@@ -95,22 +98,22 @@ proc.time() - tm
 
 # Set up labels and plot betting rates
 data_plot <- data_compare %>%
-  filter(lmbda == 1.95 & craver == 0)
+  filter(lmbda > 1.94 & lmbda < 1.96 & alpha == 0.8 & craver == 1)
 
 win_labs <- c('Yellow', 'Blue')
 names(win_labs) <- c(0.2, 0.8)
 
-ggplot(data_compare, aes(x = beta, y = betting_rate, color = factor(K))) +
+ggplot(data_plot, aes(x = beta, y = betting_rate, color = factor(K))) +
   geom_hline(yintercept = 0, color = 'gray') +
   geom_vline(xintercept = 0, color = 'gray') +
   geom_line() +
-  geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se)) +
+  geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
+                width = 0.6) +
   facet_wrap(vars(win_chance), labeller = labeller(win_chance = win_labs)) +
-  scale_y_continuous(limits = c(0, 1)) +
-  labs(x = 'Beta', y = 'Betting Rate', title = 'Lambda = 1.95, alpha 1 and 2 = 0.8') +
+  labs(x = 'Beta', y = 'Betting Rate', title = 'Craver: lambda = 1, alpha 1 and 2 = 1') +
   theme_minimal()
 
-ggsave('lambda1-95_alpha0-8.png', width = 8, height = 7)
+ggsave('risk_neutral_craver.png', width = 15, height = 13)
 
 
 
