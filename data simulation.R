@@ -106,11 +106,12 @@ names(win_labs) <- c(0.2, 0.8)
 ggplot(data_plot, aes(x = beta, y = betting_rate, color = factor(K))) +
   geom_hline(yintercept = 0, color = 'gray') +
   geom_vline(xintercept = 0, color = 'gray') +
-  geom_line() +
+  geom_line(size = 0.6) +
   geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
                 width = 0.6) +
   facet_wrap(vars(win_chance), labeller = labeller(win_chance = win_labs)) +
   labs(x = 'Beta', y = 'Betting Rate', title = 'Craver: lambda = 1, alpha 1 and 2 = 1') +
+  scale_y_continuous(breaks = seq(0, 1, 0.1)) +
   theme_minimal()
 
 ggsave('risk_neutral_craver.png', width = 15, height = 13)
