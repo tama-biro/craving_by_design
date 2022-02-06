@@ -39,19 +39,78 @@ simulate_choice_vk = function(sim_data) {
       if(back_k > 0) {
         
         # implementation of varying K from Payzan-LeNestour & Doran (2022), 1.2.2
-        u = sum(if_else(sim_data$outcome[seq(i-back_k,i-1)] > 0, 1, 0)*theta^(i-seq(i-back_k,i-1)))
+        u = sum(if_else(sim_data$outcome[(i-back_k):(i-1)] > 0, 1, 0)*theta^(i-(i-back_k):(i-1)))
         
-        K = 1/(1+exp(-kappa_1*u))-kappa_2
+        K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
         
-      }
-      
-      if(K < 0) {
-        K = 0
       }
       
       p_bet = K + (1 - K)*p_bet
     }
 
+    # Make choice
+    sim_data$choice[i] = rbinom(1, 1, p_bet)
+    
+    # Play game
+    if(sim_data$choice[i]) {
+      if(rbinom(1, 1, uncertainty)) {
+        sim_data$outcome[i] = rbinom(1, 1, win_chance)*reward_value - 0.7
+      } else {
+        sim_data$outcome[i] = 0
+      }
+    } else {
+      sim_data$outcome[i] = 0
+    }
+    
+    # Set steps back for K variable
+    if(sim_data$outcome[i] < 0) {
+      back_k = 0
+    } else {
+      back_k = back_k + 1
+    }
+    
+    if(i != nrow(sim_data)) {
+      if(sim_data$ID[i] != sim_data$ID[i+1]) {
+        back_k = 0
+      }
+    }
+  }
+  return(sim_data)
+}
+
+simulate_choice_vk2 = function(sim_data) {
+  
+  back_k = 0
+  for(i in 1:nrow(sim_data)) {
+    win_chance = sim_data$win_chance[i]
+    loss_chance = 1 - win_chance
+    reward_value = sim_data$reward_value[i]
+    uncertainty = sim_data$uncertainty[i]
+    
+    v = uncertainty*(win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
+    
+    p_bet = 1/(1 + exp(-beta*v))
+    
+    
+    if(sim_data$craver[i]) {
+      K = 0
+      if(back_k > 0) {
+        
+        # implementation of varying K from Payzan-LeNestour & Doran (2022), 1.2.2
+        outcomes = sim_data %>%
+          slice((i-back_k):(i-1)) %>%
+          filter(outcome > 0)
+        
+        if(nrow(outcomes)) {
+          u = sum(theta^(i-(i-nrow(outcomes)):(i-1)))
+          
+          K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
+        }
+      }
+      
+      p_bet = K + (1 - K)*p_bet
+    }
+    
     # Make choice
     sim_data$choice[i] = rbinom(1, 1, p_bet)
     
@@ -224,7 +283,7 @@ parameters = expand_grid(kappa_1, kappa_2)
 
 tm <- proc.time()
 
-data_compare2 = data.frame()
+data_compare3 = data.frame()
 for(i in 1:nrow(parameters)) {
   kappa_1 = parameters$kappa_1[i]
   kappa_2 = parameters$kappa_2[i]
@@ -239,7 +298,7 @@ for(i in 1:nrow(parameters)) {
     mutate(kappa_1 = kappa_1,
            kappa_2 = kappa_2)
   
-  data_compare2 = rbind(data_compare2, data_cc)
+  data_compare3 = rbind(data_compare3, data_cc)
   
   print(i)
 }
@@ -260,12 +319,13 @@ ggplot(data_plot, aes(x = kappa_1, y = betting_rate, color = factor(kappa_2))) +
   geom_vline(xintercept = 0, color = 'gray') +
   geom_line(size = 0.6) +
   geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
-                width = 0.6) +
+                width = 0.03) +
   facet_wrap(vars(win_chance), labeller = labeller(win_chance = win_labs)) +
-  labs(x = 'Kappa 1', y = 'Betting Rate', title = 'Optimal: lambda = 1.95, alpha 1 and 2 = 0.8') +
+  labs(x = 'Kappa 1', y = 'Betting Rate', title = 'Cravers: lambda = 1.95, alpha 1 and 2 = 0.8') +
   scale_y_continuous(breaks = seq(0, 1, 0.05)) +
   theme_minimal()
 
+ggsave('time_dependent_k_maxversion_cravers.png', width = 10, height = 7)
 
 
 
