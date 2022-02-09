@@ -181,7 +181,7 @@ sim_data = data.frame(ID = rep(1:N, each = 600),
 # Setting up parameters
 alpha = 0.8
 lmbda = seq(1.8, 2.1, 0.05)
-beta = c(10, 20, 30, 40, 50)
+beta = c(0, 10, 20, 30, 40, 50)
 K = c(0.05, 0.1, 0.2)
 parameters = expand_grid(alpha, lmbda, beta, K)
 alpha = lmbda = 1
@@ -221,24 +221,28 @@ data_plot <- data_compare %>%
   filter(lmbda > 1.94 & 
            lmbda < 1.96 & 
            alpha == 0.8 &
+#           K == 0.1 &
+           craver == 1)
+
+data_plot <- data_compare %>%
+  filter(lmbda == 1 &
+           alpha == 1 &
            K == 0.1 &
            craver == 0)
 
 win_labs <- c('Yellow', 'Blue')
 names(win_labs) <- c(0.2, 0.8)
 
-ggplot(data_plot, aes(x = beta, y = betting_rate, color = factor(K))) +
-  geom_hline(yintercept = 0, color = 'gray') +
-  geom_vline(xintercept = 0, color = 'gray') +
+ggplot(data_plot, aes(x = beta, y = betting_rate, col = factor(K))) +
   geom_line(size = 0.6) +
   geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
                 width = 0.6) +
-  facet_wrap(vars(win_chance), labeller = labeller(win_chance = win_labs)) +
-  labs(x = 'Beta', y = 'Betting Rate', title = 'Optimal: lambda = 1.95, alpha 1 and 2 = 0.8') +
-  scale_y_continuous(breaks = seq(0, 1, 0.05)) +
+  facet_wrap(vars(win_chance), labeller = labeller(win_chance = win_labs),
+             scales='free_y') +
+  labs(x = 'Beta', y = 'Betting Rate', title = 'Cravers: lambda = 1.95, alpha 1 and 2 = 0.8') +
   theme_minimal()
 
-ggsave('lambda1-95_alpha0-8_optimal.png', width = 10, height = 7)
+ggsave('lambda1-95_alpha0-8_cravers.png', width = 10, height = 7)
 
 
 
@@ -306,7 +310,7 @@ for(i in 1:nrow(parameters)) {
 proc.time() - tm
 
 
-data_plot <- data_compare2 %>%
+data_plot <- data_compare3 %>%
   filter(craver == 1 &
            !grepl('25', as.character(kappa_2)) &
            !grepl('75', as.character(kappa_2)))
@@ -325,7 +329,35 @@ ggplot(data_plot, aes(x = kappa_1, y = betting_rate, color = factor(kappa_2))) +
   scale_y_continuous(breaks = seq(0, 1, 0.05)) +
   theme_minimal()
 
-ggsave('time_dependent_k_maxversion_cravers.png', width = 10, height = 7)
+ggsave('time_dependent_k_timestop_cravers.png', width = 10, height = 7)
+
+
+# Misc
+
+alpha_1 = alpha_2 = 0.8
+beta = 30
+K = 0.1
+lmbda = 1.95
+beta = 30
+
+
+sim_data = simulate_choice(sim_data)
+
+by_part_blue <- sim_data %>%
+  filter(win_chance == 0.8) %>%
+  group_by(ID, craver) %>%
+  summarize(betting_rate = mean(choice))
+
+
+crave_labs <- c('Craver', 'Optimal')
+names(crave_labs) <- c(1, 0)
+
+ggplot(by_part_blue, aes(betting_rate)) +
+  geom_histogram(bins = 20, alpha = 0.6) +
+  facet_wrap(vars(craver), labeller = labeller(craver = crave_labs)) +
+  theme_minimal()
+
+ggsave('sim_distribution_in_blue.png')
 
 
 
