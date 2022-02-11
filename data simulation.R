@@ -20,6 +20,37 @@ simulate_choice = function(sim_data) {
   return(sim_data)
 }
 
+# Function to call
+simulate_choice_n = function(sim_data) {
+  
+  counter = 0
+  for(i in 1:nrow(sim_data)) {
+    win_chance = sim_data$win_chance[i]
+    loss_chance = 1 - win_chance
+    reward_value = sim_data$reward_value[i]
+    uncertainty = sim_data$uncertainty[i]
+    
+    v = uncertainty*(win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
+    
+    p_bet = 1/(1 + exp(-beta*v))
+    
+    if(sim_data$craver[i]) {
+      if(counter >= n) {
+        p_bet = K + (1 - K)*p_bet
+      }
+    }
+    sim_data$choice[i] = rbinom(1, 1, p_bet)
+    counter = counter + 1
+    
+    if(i != nrow(sim_data)) {
+      if(sim_data$ID[i] != sim_data$ID[i+1]) {
+        counter = 0
+      }
+    }
+  }
+  return(sim_data)
+}
+
 simulate_choice_vk = function(sim_data) {
   
   back_k = 0
@@ -61,10 +92,6 @@ simulate_choice_vk = function(sim_data) {
         
         K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
         
-        if(K < 0 | K > 1) {
-          print(K)
-        }
-        
       }
     }
     
@@ -97,23 +124,7 @@ simulate_choice_vk2 = function(sim_data) {
     
     p_bet = 1/(1 + exp(-beta*v))
     
-    
     if(sim_data$craver[i]) {
-      K = 0
-      if(back_k > 0) {
-        
-        # implementation of varying K from Payzan-LeNestour & Doran (2022), 1.2.2
-        outcomes = sim_data %>%
-          slice((i-back_k):(i-1)) %>%
-          filter(outcome > 0)
-        
-        if(nrow(outcomes)) {
-          u = sum(theta^(i-(i-nrow(outcomes)):(i-1)))
-          
-          K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
-        }
-      }
-      
       p_bet = K + (1 - K)*p_bet
     }
     
@@ -129,6 +140,24 @@ simulate_choice_vk2 = function(sim_data) {
       }
     } else {
       sim_data$outcome[i] = 0
+    }
+    
+    if(sim_data$craver[i]) {
+      K = 0
+      if(back_k > 0) {
+        
+        # implementation of varying K from Payzan-LeNestour & Doran (2022), 1.2.2
+        outcomes = sim_data %>%
+          slice((i-back_k):i) %>%
+          filter(outcome > 0)
+        
+        if(nrow(outcomes)) {
+          u = sum(theta^(i-(i-nrow(outcomes)):i))
+          
+          K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
+        }
+      }
+      
     }
     
     # Set steps back for K variable
@@ -185,23 +214,20 @@ simulate_choice_vk_neg_loss = function(sim_data) {
       if(back_k > 0) {
         
         # implementation of varying K from Payzan-LeNestour & Doran (2022), 1.2.2
-        u = sum(if_else(sim_data$outcome[(i-back_k):i] > 0, 1, -1)*theta^(i-(i-back_k):i))
+        u = sum(if_else(sim_data$outcome[(i-back_k):i] > 0, 1, 
+                        if_else(sim_data$outcome[(i-back_k):i] == 0, 0, -1))*theta^(i-(i-back_k):i))
         
         K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
         
       }
     }
     
-    # Set steps back for K variable
-    if(sim_data$outcome[i] < 0) {
-      back_k = 0
-    } else {
-      back_k = back_k + 1
-    }
     
     if(i != nrow(sim_data)) {
       if(sim_data$ID[i] != sim_data$ID[i+1]) {
         back_k = 0
+      } else {
+        back_k = back_k + 1
       }
     }
   }
@@ -243,11 +269,11 @@ sim_data = data.frame(ID = rep(1:N, each = 600),
                       win_chance = rep(c(win_test_p, win_control_p), N/2),
                       craver = c(rep(0, 600*N*0.4), rep(1, 600*N*0.6)))
 
-# Running simulation - v1.0
+#### Running simulation - v1.0 ####
 
 # Setting up parameters
 alpha = 0.8
-lmbda = seq(1.8, 2.1, 0.05)
+lmbda = 1.95
 beta = c(0, 10, 20, 30, 40, 50)
 K = c(0.05, 0.1, 0.2)
 parameters = expand_grid(alpha, lmbda, beta, K)
@@ -263,6 +289,7 @@ for(i in 1:nrow(parameters)) {
   beta = parameters$beta[i]
   K = parameters$K[i]
   lmbda = parameters$lmbda[i]
+  n = parameters$n[i]
   
   sim_data = simulate_choice(sim_data)
   
@@ -288,15 +315,16 @@ data_plot <- data_compare %>%
   filter(lmbda > 1.94 & 
            lmbda < 1.96 & 
            alpha == 0.8 &
-#           K == 0.1 &
-           craver == 1 &
+           K == 0.1 &
+           craver == 0 &
            win_chance == 0.8)
 
 data_plot <- data_compare %>%
   filter(lmbda == 1 &
            alpha == 1 &
-           K == 0.1 &
-           craver == 0 )
+#           K == 0.1 &
+           craver == 1 &
+           win_chance == 0.8)
 
 ggplot(data_plot, aes(x = beta, y = betting_rate, color = factor(K))) +
   geom_line(size = 0.6) +
@@ -305,11 +333,11 @@ ggplot(data_plot, aes(x = beta, y = betting_rate, color = factor(K))) +
   scale_y_continuous(expand = c(0, 0), breaks = seq(0, 1, by = 0.05)) +
   labs(x = expression(beta), 
        y = 'Betting Rate', 
-       title = expression("Cravers (blue):" ~ lambda ~ "= 1.95," ~ alpha[1] ~ "=" ~ alpha[2] ~ "= 0.8")) +
+       title = expression("Cravers (blue):" ~ lambda ~ "= 1," ~ alpha[1] ~ "=" ~ alpha[2] ~ "= 1")) +
   theme_minimal() +
   guides(color=guide_legend(title='K factor'))
 
-ggsave('lambda1-95_alpha0-8_cravers_blue.png', width = 10, height = 7)
+ggsave('risk_neutral_cravers_blue.png', width = 10, height = 7)
 
 
 
@@ -338,8 +366,79 @@ ggplot(data_plot_lam, aes(x = beta, y = betting_rate, color = factor(lmbda))) +
 ggsave('varying_lambda.png', width = 8, height = 7)
 
 
-#### Varying K version
+#### K changes after nth exposure ####
 
+# Setting up parameters
+alpha = 0.8
+lmbda = 1.95
+beta = c(0, 10, 20, 30, 40, 50)
+K = c(0.05, 0.1, 0.2)
+n = c(0, 1, 3, 4)
+parameters = expand_grid(alpha, lmbda, beta, K, n)
+alpha = lmbda = 1
+risk_neutral <- expand_grid(alpha, lmbda, beta, K, n)
+parameters <- rbind(parameters, risk_neutral)
+
+tm <- proc.time()
+
+data_compare_n = data.frame()
+for(i in 1:nrow(parameters)) {
+  alpha_1 = alpha_2 = parameters$alpha[i]
+  beta = parameters$beta[i]
+  K = parameters$K[i]
+  lmbda = parameters$lmbda[i]
+  n = parameters$n[i]
+  
+  sim_data = simulate_choice_n(sim_data)
+  
+  data_cc = sim_data %>%
+    group_by(win_chance, craver) %>%
+    summarize(betting_rate = mean(choice),
+              se = se(choice)) %>%
+    ungroup() %>%
+    mutate(alpha = alpha_1,
+           beta = beta,
+           K = K,
+           lmbda = lmbda,
+           n = n)
+  
+  data_compare_n = rbind(data_compare_n, data_cc)
+  
+  print(i)
+}
+
+proc.time() - tm
+
+# Set up labels and plot betting rates
+data_plot <- data_compare_n %>%
+  filter(lmbda > 1.94 & 
+           lmbda < 1.96 & 
+           alpha == 0.8 &
+           craver == 1 &
+           win_chance == 0.8)
+
+data_plot <- data_compare_n %>%
+  filter(lmbda == 1 &
+           alpha == 1 &
+           craver == 1 &
+           win_chance == 0.2)
+
+ggplot(data_plot, aes(x = beta, y = betting_rate, color = factor(K))) +
+  geom_line(size = 0.6) +
+  geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
+                width = 0.6) +
+  scale_y_continuous(expand = c(0, 0), breaks = seq(0, 1, by = 0.05)) +
+  labs(x = expression(beta), 
+       y = 'Betting Rate', 
+       title = expression("Cravers (blue):" ~ lambda ~ "= 1.95," ~ alpha[1] ~ "=" ~ alpha[2] ~ "= 0.8. By nth exposure")) +
+  facet_wrap(vars(n), ncol = 4) +
+  theme_minimal() +
+  guides(color=guide_legend(title='K factor'))
+
+ggsave('lossaverse_riskaverse_by_n_cravers_blue.png', width = 18, height = 7)
+
+
+#### Varying K version ####
 
 # Setting up parameters
 alpha_1 = alpha_2 = 0.8
@@ -348,7 +447,7 @@ beta = 30
 K = 0
 theta = 0.9
 kappa_1 = seq(0.1, 1, 0.1)
-kappa_2 = seq(0.5, 0.7, 0.025)
+kappa_2 = seq(0.5, 0.7, 0.05)
 
 parameters = expand_grid(kappa_1, kappa_2)
 
@@ -374,29 +473,88 @@ for(i in 1:nrow(parameters)) {
   print(i)
 }
 
+alpha_1 = alpha_2 = 0.8
+lmbda = 1.95
+beta = 30
+K = 0
+theta = 0.9
+kappa_1 = seq(0.1, 1, 0.1)
+kappa_2 = seq(0.5, 0.7, 0.05)
+
+parameters = expand_grid(kappa_1, kappa_2)
+
+data_compare3 = data.frame()
+for(i in 1:nrow(parameters)) {
+  kappa_1 = parameters$kappa_1[i]
+  kappa_2 = parameters$kappa_2[i]
+  
+  sim_data = simulate_choice_vk2(sim_data)
+  
+  data_cc = sim_data %>%
+    group_by(win_chance, craver) %>%
+    summarize(betting_rate = mean(choice),
+              se = se(choice)) %>%
+    ungroup() %>%
+    mutate(kappa_1 = kappa_1,
+           kappa_2 = kappa_2)
+  
+  data_compare3 = rbind(data_compare3, data_cc)
+  
+  print(i)
+}
+
+alpha_1 = alpha_2 = 0.8
+lmbda = 1.95
+beta = 30
+K = 0
+theta = 0.9
+kappa_1 = seq(0.1, 1, 0.1)
+kappa_2 = seq(0.5, 0.7, 0.05)
+
+parameters = expand_grid(kappa_1, kappa_2)
+
+data_compare4 = data.frame()
+for(i in 1:nrow(parameters)) {
+  kappa_1 = parameters$kappa_1[i]
+  kappa_2 = parameters$kappa_2[i]
+  
+  sim_data = simulate_choice_vk_neg_loss(sim_data)
+  
+  data_cc = sim_data %>%
+    group_by(win_chance, craver) %>%
+    summarize(betting_rate = mean(choice),
+              se = se(choice)) %>%
+    ungroup() %>%
+    mutate(kappa_1 = kappa_1,
+           kappa_2 = kappa_2)
+  
+  data_compare4 = rbind(data_compare4, data_cc)
+  
+  print(i)
+}
+
 proc.time() - tm
 
 
-data_plot <- data_compare3 %>%
+data_plot <- data_compare4 %>%
   filter(craver == 1 &
            !grepl('25', as.character(kappa_2)) &
-           !grepl('75', as.character(kappa_2)))
-
-win_labs <- c('Yellow', 'Blue')
-names(win_labs) <- c(0.2, 0.8)
+           !grepl('75', as.character(kappa_2)) &
+           win_chance == 0.2)
 
 ggplot(data_plot, aes(x = kappa_1, y = betting_rate, color = factor(kappa_2))) +
-  geom_hline(yintercept = 0, color = 'gray') +
-  geom_vline(xintercept = 0, color = 'gray') +
   geom_line(size = 0.6) +
   geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
                 width = 0.03) +
-  facet_wrap(vars(win_chance), labeller = labeller(win_chance = win_labs)) +
-  labs(x = 'Kappa 1', y = 'Betting Rate', title = 'Cravers: lambda = 1.95, alpha 1 and 2 = 0.8') +
-  scale_y_continuous(breaks = seq(0, 1, 0.05)) +
-  theme_minimal()
+  labs(x = expression(kappa[1]), 
+       y = 'Betting Rate', 
+       title = expression("Cravers (yellow):" ~ lambda ~ "= 1.95," ~ alpha[1] ~ "=" ~ alpha[2] ~ "= 0.8. Time varying K - negative loss")) +
+  #scale_y_continuous(breaks = seq(0, 1, 0.025)) +
+  scale_x_continuous(breaks = seq(-0.1, 1.1, 0.2)) +
+  theme_minimal() +
+  guides(color=guide_legend(title=expression(kappa[2])))
 
-ggsave('time_dependent_k_timestop_cravers.png', width = 10, height = 7)
+ggsave('time_dependent_k_negloss_cravers_yellow.png', width = 10, height = 7)
 
 
 # Misc
