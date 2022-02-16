@@ -42,10 +42,9 @@ simulate_choice_n = function(sim_data) {
     sim_data$choice[i] = rbinom(1, 1, p_bet)
     counter = counter + 1
     
-    if(i != nrow(sim_data)) {
-      if(sim_data$ID[i] != sim_data$ID[i+1]) {
-        counter = 0
-      }
+    # Restart if we change repetition
+    if(i + 1 %% 100 == 0) {
+      counter = 0
     }
   }
   return(sim_data)
@@ -102,10 +101,10 @@ simulate_choice_vk = function(sim_data) {
       back_k = back_k + 1
     }
     
-    if(i != nrow(sim_data)) {
-      if(sim_data$ID[i] != sim_data$ID[i+1]) {
-        back_k = 0
-      }
+    # Restart if we change repetition
+    if(i + 1 %% 100 == 0) {
+      back_k = 0
+      K = 0
     }
   }
   return(sim_data)
@@ -167,10 +166,10 @@ simulate_choice_vk2 = function(sim_data) {
       back_k = back_k + 1
     }
     
-    if(i != nrow(sim_data)) {
-      if(sim_data$ID[i] != sim_data$ID[i+1]) {
-        back_k = 0
-      }
+    # Restart if we change repetition
+    if(i + 1 %% 100 == 0) {
+      back_k = 0
+      K = 0
     }
   }
   return(sim_data)
@@ -223,12 +222,12 @@ simulate_choice_vk_neg_loss = function(sim_data) {
     }
     
     
-    if(i != nrow(sim_data)) {
-      if(sim_data$ID[i] != sim_data$ID[i+1]) {
-        back_k = 0
-      } else {
-        back_k = back_k + 1
-      }
+    # Restart if we change repetition
+    if(i + 1 %% 100 == 0) {
+      back_k = 0
+      K = 0
+    } else {
+      back_k = back_k + 1
     }
   }
   return(sim_data)
