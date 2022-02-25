@@ -94,17 +94,12 @@ simulate_choice_vk = function(sim_data) {
       }
     }
     
-    # Set steps back for K variable
-    if(sim_data$outcome[i] < 0) {
-      back_k = 0
-    } else {
-      back_k = back_k + 1
-    }
-    
     # Restart if we change repetition
-    if(i + 1 %% 100 == 0) {
+    if((i + 1) %% 100 == 0) {
       back_k = 0
       K = 0
+    } else {
+      back_k = back_k + 1
     }
   }
   return(sim_data)
@@ -148,10 +143,11 @@ simulate_choice_vk2 = function(sim_data) {
         # implementation of varying K from Payzan-LeNestour & Doran (2022), 1.2.2
         outcomes = sim_data %>%
           slice((i-back_k):i) %>%
-          filter(outcome > 0)
+          filter(outcome != 0) %>%
+          select(outcome)
         
         if(nrow(outcomes)) {
-          u = sum(theta^(i-(i-nrow(outcomes)):i))
+          u = sum(if_else(outcomes$outcome > 0, 1, 0)*theta^(i-(i-nrow(outcomes)):i))
           
           K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
         }
@@ -159,17 +155,16 @@ simulate_choice_vk2 = function(sim_data) {
       
     }
     
-    # Set steps back for K variable
-    if(sim_data$outcome[i] < 0) {
+    # Restart if we change repetition
+    if((i + 1) %% 100 == 0) {
       back_k = 0
+      K = 0
     } else {
       back_k = back_k + 1
     }
-    
-    # Restart if we change repetition
-    if(i + 1 %% 100 == 0) {
-      back_k = 0
-      K = 0
+    if(back_k > 100){
+      print(back_k)
+      break
     }
   }
   return(sim_data)
@@ -223,7 +218,7 @@ simulate_choice_vk_neg_loss = function(sim_data) {
     
     
     # Restart if we change repetition
-    if(i + 1 %% 100 == 0) {
+    if((i + 1) %% 100 == 0) {
       back_k = 0
       K = 0
     } else {
@@ -414,7 +409,7 @@ data_plot <- data_compare_n %>%
            lmbda < 1.96 & 
            alpha == 0.8 &
            craver == 1 &
-           win_chance == 0.8)
+           win_chance == 0.2)
 
 data_plot <- data_compare_n %>%
   filter(lmbda == 1 &
@@ -429,12 +424,12 @@ ggplot(data_plot, aes(x = beta, y = betting_rate, color = factor(K))) +
   scale_y_continuous(expand = c(0, 0), breaks = seq(0, 1, by = 0.05)) +
   labs(x = expression(beta), 
        y = 'Betting Rate', 
-       title = expression("Cravers (blue):" ~ lambda ~ "= 1.95," ~ alpha[1] ~ "=" ~ alpha[2] ~ "= 0.8. By nth exposure")) +
+       title = expression("Cravers (yellow):" ~ lambda ~ "= 1.95," ~ alpha[1] ~ "=" ~ alpha[2] ~ "= 0.8 - By nth exposure")) +
   facet_wrap(vars(n), ncol = 4) +
   theme_minimal() +
   guides(color=guide_legend(title='K factor'))
 
-ggsave('lossaverse_riskaverse_by_n_cravers_blue.png', width = 18, height = 7)
+ggsave('lossaverse_riskaverse_by_n_cravers_yellow.png', width = 20, height = 7)
 
 
 #### Varying K version ####
@@ -446,7 +441,7 @@ beta = 30
 K = 0
 theta = 0.9
 kappa_1 = seq(0.1, 1, 0.1)
-kappa_2 = seq(0.5, 0.7, 0.05)
+kappa_2 = seq(0.5, 0.7, 0.1)
 
 parameters = expand_grid(kappa_1, kappa_2)
 
@@ -478,7 +473,7 @@ beta = 30
 K = 0
 theta = 0.9
 kappa_1 = seq(0.1, 1, 0.1)
-kappa_2 = seq(0.5, 0.7, 0.05)
+kappa_2 = seq(0.5, 0.7, 0.1)
 
 parameters = expand_grid(kappa_1, kappa_2)
 
@@ -507,8 +502,8 @@ lmbda = 1.95
 beta = 30
 K = 0
 theta = 0.9
-kappa_1 = seq(0.1, 1, 0.1)
-kappa_2 = seq(0.5, 0.7, 0.05)
+kappa_1 = c(seq(0.1, 1, 0.2), 1)
+kappa_2 = seq(0.5, 0.7, 0.1)
 
 parameters = expand_grid(kappa_1, kappa_2)
 
@@ -537,9 +532,7 @@ proc.time() - tm
 
 data_plot <- data_compare4 %>%
   filter(craver == 1 &
-           !grepl('25', as.character(kappa_2)) &
-           !grepl('75', as.character(kappa_2)) &
-           win_chance == 0.2)
+           win_chance == 0.8)
 
 ggplot(data_plot, aes(x = kappa_1, y = betting_rate, color = factor(kappa_2))) +
   geom_line(size = 0.6) +
@@ -547,13 +540,13 @@ ggplot(data_plot, aes(x = kappa_1, y = betting_rate, color = factor(kappa_2))) +
                 width = 0.03) +
   labs(x = expression(kappa[1]), 
        y = 'Betting Rate', 
-       title = expression("Cravers (yellow):" ~ lambda ~ "= 1.95," ~ alpha[1] ~ "=" ~ alpha[2] ~ "= 0.8. Time varying K - negative loss")) +
-  #scale_y_continuous(breaks = seq(0, 1, 0.025)) +
+       title = expression("Cravers (blue):" ~ lambda ~ "= 1.95," ~ alpha[1] ~ "=" ~ alpha[2] ~ "= 0.8. Time varying K - negative loss")) +
+  scale_y_continuous(breaks = seq(0, 1, 0.025)) +
   scale_x_continuous(breaks = seq(-0.1, 1.1, 0.2)) +
   theme_minimal() +
   guides(color=guide_legend(title=expression(kappa[2])))
 
-ggsave('time_dependent_k_negloss_cravers_yellow.png', width = 10, height = 7)
+ggsave('time_dependent_k_negloss_blue.png', width = 10, height = 7)
 
 
 # Misc
