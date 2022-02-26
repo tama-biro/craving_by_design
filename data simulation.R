@@ -530,7 +530,7 @@ for(i in 1:nrow(parameters)) {
 proc.time() - tm
 
 
-data_plot <- data_compare4 %>%
+data_plot <- data_compare2 %>%
   filter(craver == 1 &
            win_chance == 0.8)
 
@@ -540,13 +540,13 @@ ggplot(data_plot, aes(x = kappa_1, y = betting_rate, color = factor(kappa_2))) +
                 width = 0.03) +
   labs(x = expression(kappa[1]), 
        y = 'Betting Rate', 
-       title = expression("Cravers (blue):" ~ lambda ~ "= 1.95," ~ alpha[1] ~ "=" ~ alpha[2] ~ "= 0.8. Time varying K - negative loss")) +
+       title = expression("Cravers (blue):" ~ lambda ~ "= 1.95," ~ alpha[1] ~ "=" ~ alpha[2] ~ "= 0.8. Time varying K - max version")) +
   scale_y_continuous(breaks = seq(0, 1, 0.025)) +
   scale_x_continuous(breaks = seq(-0.1, 1.1, 0.2)) +
   theme_minimal() +
   guides(color=guide_legend(title=expression(kappa[2])))
 
-ggsave('time_dependent_k_negloss_blue.png', width = 10, height = 7)
+ggsave('time_dependent_k_maxversion_blue.png', width = 10, height = 7)
 
 
 # Misc
