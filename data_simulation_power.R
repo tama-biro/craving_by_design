@@ -1,5 +1,6 @@
 
 library(tidyverse)
+library(lme4)
 
 # Functions to set parameters
 set_alpha <- function() {
@@ -65,6 +66,7 @@ simulate_choice_vk2 = function(sim_data) {
   
   # Set up parameters for first participant
   back_k = 0
+  K = 0
   
   alpha_1 = alpha_2 = set_alpha()
   lmbda = set_lmbda()
@@ -102,7 +104,6 @@ simulate_choice_vk2 = function(sim_data) {
     }
     
     if(sim_data$craver[i]) {
-      K = 0
       if(back_k > 0) {
         
         # implementation of varying K from Payzan-LeNestour & Doran (2022), 1.2.2
@@ -112,7 +113,7 @@ simulate_choice_vk2 = function(sim_data) {
           select(outcome)
         
         if(nrow(outcomes)) {
-          u = sum(if_else(outcomes$outcome > 0, 1, 0)*theta^(i-(i-nrow(outcomes)):i))
+          u = sum(if_else(outcomes$outcome > 0, 1, 0)*theta^(i-(i-nrow(outcomes)+1):i))
           
           K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
         }
@@ -180,22 +181,16 @@ sim_data = data.frame(ID = rep(1:N, each = 600),
 # Simulation
 tm <- proc.time()
 
-data_compare2 = data.frame()
-for(i in 1:nrow(parameters)) {
-  kappa_1 = parameters$kappa_1[i]
-  kappa_2 = parameters$kappa_2[i]
-  
-  sim_data = simulate_choice_vk(sim_data)
-  
-  data_cc = sim_data %>%
-    group_by(win_chance, craver) %>%
-    summarize(betting_rate = mean(choice),
-              se = se(choice)) %>%
-    ungroup() %>%
-    mutate(kappa_1 = kappa_1,
-           kappa_2 = kappa_2)
-  
-  data_compare2 = rbind(data_compare2, data_cc)
-  
-  print(i)
-}
+sim_data = simulate_choice_vk2(sim_data)
+
+proc.time() - tm
+
+
+mod = glmer(choice ~ factor(reward_value) + factor(uncertainty) + 
+            factor(win_chance) * factor(craver) + (1 | ID),
+            data = sim_data, family = binomial(link='logit'))
+
+summary(mod)
+
+
+
