@@ -11,7 +11,31 @@ set_alpha <- function() {
 }
 
 set_lambda <- function() {
-  # Draw from N()
+  #' Non-parametric approach, mean=1.97
+  #' Folded N(lambda_MEAN, SE^2) to remove 0 values
+  #' The estimated overall mean 1.810, 95% CI [1742, 1.880]
+  #' log-normal distribution to account for positive skew, p. 20
+  #' 
+  #' 
+  
+  #' Setting lambda from LA meta-analysis paper, p.20
+  
+  # 'Brown, Alexander L. and Imai, Taisuke and Vieider, Ferdinand and Camerer, Colin F., 
+  #' Meta-Analysis of Empirical Estimates of Loss-Aversion (2021). 
+  #' CESifo Working Paper No. 8848, 
+  #' Available at SSRN: 
+  #" https://ssrn.com/abstract=3772089
+  
+  sigma_p <- folded_rnorm(1, 0, 5)
+  df <- folded_rnorm(1, 0, 5)
+  tau_l <- folded_rnorm(1, 0, 5)
+  lambda_0_l <- rnorm(1, 1, 5)
+  
+  lambda_p_bar <- r_lognorm(1, lambda_0_l, tau_l^2)
+  
+  lambda_pi_bar <- cauchy(1, df, lambda_p_bar, sigma_p^2)
+  
+  lambda_pi <- rnorm(1, lambda_pi_bar, se_pi^2)
 }
 
 set_beta <- function(varying=TRUE,
