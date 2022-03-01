@@ -150,12 +150,17 @@ se = function(x) {
 }
 
 # Setup per repetition
-reward_test = rep(c(rep(1:2, each = 5, times = 2), rep(1, 5), rep(1:2, each = 5, times = 2), rep(2, 5)), 2)
+reward_test = rep(c(rep(1:2, each = 5, times = 2), 
+                    rep(1, 5), 
+                    rep(1:2, each = 5, times = 2), 
+                    rep(2, 5)), 2)
 reward_control = rep(rep(1:2, each = 5), 10)
 
 uncertainty_test = c(rep(c(rep(c(1, 0.5), each = 10), rep(0.5, 5)), 2), 
                      rep(c(rep(c(1, 0.5), each = 10), rep(1, 5)), 2))
-uncertainty_control = c(rep(c(0.5, 1), each = 10), rep(rep(c(1, 0.5), each = 10), 4))
+uncertainty_control = c(rep(c(0.5, 1), each = 10), 
+                        rep(rep(c(1, 0.5), each = 10), 
+                            4))
 
 win_test = rep(c(rep(0.8, 20), rep(0.2, 5)), 4)
 win_control = c(rep(0.2, 20), rep(0.8, 80))
@@ -173,10 +178,21 @@ win_control_p = rep(win_control, 6)
 # Make data frame
 N = 200
 sim_data = data.frame(ID = rep(1:N, each = 600),
-                      reward_value = rep(c(reward_test_p, reward_control_p), N/2),
-                      uncertainty = rep(c(uncertainty_test_p, uncertainty_control_p), N/2),
-                      win_chance = rep(c(win_test_p, win_control_p), N/2),
-                      craver = c(rep(0, 600*N*0.4), rep(1, 600*N*0.6)))
+                      reward_value = rep(c(reward_test_p, reward_control_p), 
+                                         N/2),
+                      uncertainty = rep(c(uncertainty_test_p, 
+                                          uncertainty_control_p), 
+                                        N/2),
+                      win_chance = rep(c(win_test_p, 
+                                         win_control_p), 
+                                       N/2),
+                      treat = rep(c(rep('test', 
+                                        600), 
+                                    rep('control', 
+                                        600)), 
+                                  N/2),
+                      craver = c(rep(0, 600*N*0.4), 
+                                 rep(1, 600*N*0.6)))
 
 # Simulation
 tm <- proc.time()
@@ -185,9 +201,8 @@ sim_data = simulate_choice_vk2(sim_data)
 
 proc.time() - tm
 
-
-mod = glmer(choice ~ factor(reward_value) + factor(uncertainty) + 
-            factor(win_chance) * factor(craver) + (1 | ID),
+mod = glmer(choice ~ factor(reward_value) + factor(uncertainty) + factor(craver) +
+            factor(win_chance) * factor(treat) + (1 | ID),
             data = sim_data, family = binomial(link='logit'))
 
 summary(mod)
