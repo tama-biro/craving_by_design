@@ -10,15 +10,10 @@ set_alpha <- function() {
   return(alpha)
 }
 
-set_lambda <- function() {
-  #' Non-parametric approach, mean=1.97
-  #' Folded N(lambda_MEAN, SE^2) to remove 0 values
-  #' The estimated overall mean 1.810, 95% CI [1742, 1.880]
-  #' log-normal distribution to account for positive skew, p. 20
-  #' 
-  #' 
-  
-  #' Setting lambda from LA meta-analysis paper, p.20
+set_lmbda <- function() {
+  #' Setting lambda from LA meta-analysis paper, p.26
+  #' The estimated overall mean 1.955, 95% CI [1.824, 2.104]
+  #' half-normal with abs(X)
   
   # 'Brown, Alexander L. and Imai, Taisuke and Vieider, Ferdinand and Camerer, Colin F., 
   #' Meta-Analysis of Empirical Estimates of Loss-Aversion (2021). 
@@ -26,42 +21,40 @@ set_lambda <- function() {
   #' Available at SSRN: 
   #" https://ssrn.com/abstract=3772089
   
-  sigma_p <- folded_rnorm(1, 0, 5)
-  df <- folded_rnorm(1, 0, 5)
-  tau_l <- folded_rnorm(1, 0, 5)
-  lambda_0_l <- rnorm(1, 1, 5)
+  lmbda <- abs(rnorm(1, 1.955, 0.14))
   
-  lambda_p_bar <- r_lognorm(1, lambda_0_l, tau_l^2)
-  
-  lambda_pi_bar <- cauchy(1, df, lambda_p_bar, sigma_p^2)
-  
-  lambda_pi <- rnorm(1, lambda_pi_bar, se_pi^2)
+  return(lmbda)
 }
 
 set_beta <- function(varying=TRUE,
                      lower=0,
                      upper=50,
                      constant_b=30) {
+  #' If varying = TRUE, set beta from uniform between bounds
+  #' Else, beta is constant
   if(varying) {
-    beta <- sample(seq(lower, upper, 10), 1)
+    beta <- runif(1, lower, upper)
     return(beta)
   }
   return(constant_b)
 }
 
 set_kappa1 <- function() {
+  #' Set kappa1 from uniform
   kappa1 <- runif(1, 0.1, 1)
   
   return(kappa1)
 }
 
 set_kappa2 <- function() {
+  #' Set kappa2 from uniform
   kappa2 <- runif(1, 0.4, 1)
   
   return(kappa2)
 }
 
 set_theta <- function() {
+  #' Set theta from uniform
   theta <- runif(1, 0.5, 1)
   
   return(theta)
@@ -71,8 +64,15 @@ set_theta <- function() {
 simulate_choice_vk2 = function(sim_data) {
   
   # Set up parameters for first participant
-  
   back_k = 0
+  
+  alpha_1 = alpha_2 = set_alpha()
+  lmbda = set_lmbda()
+  beta = set_beta()
+  kappa_1 = set_kappa1()
+  kappa_2 = set_kappa2()
+  theta = set_theta()
+  
   for(i in 1:nrow(sim_data)) {
     win_chance = sim_data$win_chance[i]
     loss_chance = 1 - win_chance
@@ -121,16 +121,23 @@ simulate_choice_vk2 = function(sim_data) {
     }
     
     # Restart if we change repetition
-    if((i + 1) %% 100 == 0) {
+    if(i %% 100 == 0) {
       back_k = 0
       K = 0
     } else {
       back_k = back_k + 1
     }
-    if(back_k > 100){
-      print(back_k)
-      break
+    
+    # Set parameters for new participant
+    if(i %% 600 == 0) {
+      alpha_1 = alpha_2 = set_alpha()
+      lmbda = set_lmbda()
+      beta = set_beta()
+      kappa_1 = set_kappa1()
+      kappa_2 = set_kappa2()
+      theta = set_theta()
     }
+    
   }
   return(sim_data)
 }
