@@ -177,16 +177,7 @@ sim_data = data.frame(ID = rep(1:N, each = 600),
                       win_chance = rep(c(win_test_p, win_control_p), N/2),
                       craver = c(rep(0, 600*N*0.4), rep(1, 600*N*0.6)))
 
-# Setting up parameters
-lmbda = 1.95
-beta = 30
-K = 0
-theta = 0.9
-kappa_1 = seq(0.1, 1, 0.1)
-kappa_2 = seq(0.5, 0.7, 0.1)
-
-parameters = expand_grid(kappa_1, kappa_2)
-
+# Simulation
 tm <- proc.time()
 
 data_compare2 = data.frame()
