@@ -187,6 +187,7 @@ data_sesh <- data %>%
 
 summary(aov(betting_rate ~ factor(first_sesh), data = data_sesh))
 
+<<<<<<< Updated upstream
 ggplot(data_sesh, aes(x = factor(first_sesh), y = betting_rate)) +
   geom_boxplot() +
   scale_x_discrete(name = 'Session',
@@ -195,6 +196,8 @@ ggplot(data_sesh, aes(x = factor(first_sesh), y = betting_rate)) +
   labs(title = 'Test treatment (blue sessions)',
        y = 'Betting rate') +
   theme_minimal()
+=======
+>>>>>>> Stashed changes
 
 
 
