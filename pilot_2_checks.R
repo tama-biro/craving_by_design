@@ -2,12 +2,6 @@
 library(tidyverse)
 library(effectsize)
 
-# Function to calculate standard error
-se = function(x) {
-  se = sd(x)/sqrt(length(x))
-  return(se)
-}
-
 # Loading pilot data
 data <- read.csv(file.choose())
 
@@ -54,21 +48,20 @@ data <- data %>%
          gender = as.factor(gender),
          major = as.factor(major))
 
-
-# Removing first session in sequence 2-6
-# Rerun analysis to compare
+# Checking differences between first session and others
 data <- data %>%
-  filter(!(block_number == 1 & sequence_number > 1))
+  mutate(first_sesh = if_else(block_number == 1 & sequence_number > 1,
+                              1,
+                              if_else(block_number == 1,
+                                      2,
+                                      0)))
 
-
-
-
-##### Check distributions of craving in blue/yellow for optimal/cravers #####
+# Check distributions of craving in blue/yellow for optimal/cravers
 data_dists <- data %>%
   group_by(id, block_type, craver) %>%
   summarize(betting_rate = mean(choice, na.rm=TRUE)) %>%
   ungroup() %>%
-  filter(block_type == 'S')
+  filter(block_type == 'C')
 
 
 # Plot
@@ -76,7 +69,7 @@ ggplot(data_dists, aes(x = factor(craver), y = betting_rate)) +
   geom_boxplot() +
   scale_x_discrete(breaks = 0:1, labels = c('Optimal', 'Craver'),
                    name = 'Betting type') +
-  scale_y_continuous(breaks = seq(0.5, 1, 0.05),
+  scale_y_continuous(breaks = seq(0, 0.55, 0.05),
                      name = 'Betting rate') +
   labs(title = 'In yellow sessions') +
   theme_minimal()
@@ -93,43 +86,7 @@ ggplot(data_dists, aes(betting_rate)) +
 ggsave('betting_rates_hist_pilot_yellow_c.png', width = 10, height = 7)
 
 
-##### Check distributions of craving in blue/yellow for test/control #####
-data_dists2 <- data %>%
-  group_by(block_type, treatment) %>%
-  summarize(betting_rate = mean(choice, na.rm=TRUE),
-            se = se(choice)) %>%
-  ungroup()
-
-
-# Plot
-ggplot(data_dists2, aes(x = treatment, 
-                        y = betting_rate,
-                        fill = block_type,
-                        group = block_type)) +
-  geom_bar(stat='identity', position = position_dodge(0.7),
-           width = .4) +
-  geom_errorbar(aes(ymin = betting_rate - se,
-                    ymax = betting_rate + se),
-                width = 0.1, position = position_dodge(0.7)) +
-  scale_x_discrete(breaks = c('control', 'test'), 
-                   labels = c('Control', 'Test'),
-                   name = 'Condition') +
-  scale_y_continuous(breaks = seq(0, 1, 0.1),
-                     name = 'Betting rate') +
-  scale_fill_manual(breaks = c('C', 'S'), labels = c('Yellow', 'Blue'),
-                    values = c('#ffd500', '#005bbb'),
-                    name = 'Session color') +
-  theme_minimal() +
-  theme(
-    panel.grid.major.x = element_blank()
-  )
-
-ggsave('betting_rates_pilot_control_test.png', width = 10, height = 7)
-
-
-
-
-##### Effect sizes #####
+# Effect sizes
 
 # Test 1
 # Difference between low and high reward in yellow
@@ -214,6 +171,30 @@ data_es6 <- data %>%
   summarize(betting_rate = mean(choice))
 
 cohens_d(data_es6$betting_rate, mu = 0)
+
+
+
+#### Differences in betting rates in first/other sessions ####
+
+# Run it by treatment, change line 181 for control/test
+# Note that 'control' treatment start sequences with C
+# 'test' treatment start sequences with S 
+data_sesh <- data %>%
+  filter(treatment == 'test' & block_type == 'S') %>%
+  group_by(id, first_sesh) %>%
+  summarize(betting_rate = mean(choice, na.rm = TRUE)) %>%
+  ungroup()
+
+summary(aov(betting_rate ~ factor(first_sesh), data = data_sesh))
+
+ggplot(data_sesh, aes(x = factor(first_sesh), y = betting_rate)) +
+  geom_boxplot() +
+  scale_x_discrete(name = 'Session',
+                   breaks = 0:2,
+                   labels('')) +
+  labs(title = 'Test treatment (blue sessions)',
+       y = 'Betting rate') +
+  theme_minimal()
 
 
 

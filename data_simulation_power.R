@@ -143,6 +143,36 @@ simulate_choice_vk2 = function(sim_data) {
   return(sim_data)
 }
 
+# Exposure time function
+add_exposure_time <- function(data) {
+  
+  # Initialize exposure time as 0
+  e_time <- 0
+  
+  # Loop through data and add exposure time and update value
+  for (i in 1:nrow(data)) {
+    
+    data$exposure_time[i] <- e_time
+    
+    # Increment exposure time if not pass
+    if (data$win_chance[i + 1] == 0.8) {
+      if (data$outcome[i + 1] != 0) {
+        e_time <- e_time + 1
+      }
+    } else {
+      e_time <- 0
+    }
+    
+    # Add previous choice
+    if(i != 1) {
+      if(data$ID[i] == data$ID[i-1]) {
+        data$previous_choice[i] <- data$choice[i - 1]
+      }
+    }
+  }
+  return(data)
+}
+
 # Function to calculate standard error
 se = function(x) {
   se = sd(x)/sqrt(length(x))
@@ -178,7 +208,8 @@ win_control_p = rep(win_control, 6)
 # Make data frame
 N = 200
 sim_data = data.frame(ID = rep(1:N, each = 600),
-                      reward_value = rep(c(reward_test_p, reward_control_p), 
+                      reward_value = rep(c(reward_test_p, 
+                                           reward_control_p), 
                                          N/2),
                       uncertainty = rep(c(uncertainty_test_p, 
                                           uncertainty_control_p), 
@@ -201,11 +232,86 @@ sim_data = simulate_choice_vk2(sim_data)
 
 proc.time() - tm
 
-mod = glmer(choice ~ factor(reward_value) + factor(uncertainty) + factor(craver) +
-            factor(win_chance) * factor(treat) + (1 | ID),
-            data = sim_data, family = binomial(link='logit'))
+mod = glmer(choice ~ factor(reward_value) + factor(uncertainty) + 
+              factor(craver) + factor(win_chance) * factor(treat) + 
+              (1 | ID), data = sim_data, 
+            family = binomial(link='logit'))
 
 summary(mod)
+
+#### THe following tests will be run ####
+
+# Test 1
+# Paired, one-tailed t-test
+# Difference between low/high reward in yellow
+# High = higher betting
+
+# Test 2
+# Logistic mixed-model
+# Difference between low/high reward overall
+# High = higher betting
+
+# Difference low/high uncertainty overall
+# High = higher betting
+
+# Interaction treat/session color
+# Negative coefficient
+
+# Add noise + previous choice
+
+# Test 3
+# logistic/linear regression by-participant
+# Test treatment higher betting
+
+# Test 4
+# Logistic mixed model for betting in yellow
+# Reward
+# Uncertainty
+# Treatment
+
+# Test 5
+# Two-sample one-tailed t-test
+# Control vs test in blue
+# Test higher
+
+# Test 6
+# Logistic mixed model in blue
+# Exposure time positive
+
+# Test 7
+# One-sample t-test in yellow+test
+# Betting different from 0
+
+# Test 8
+# Paired, one-tailed t-test
+# Difference low/high uncertainty in yellow
+# High = higher betting
+
+for (i in 1:1000) {
+  
+  # Simulate dataset
+  sim_data <- simulate_choice_vk2(sim_data)
+  
+  # Make exposure time and previous choice
+  sim_data <- add_exposure_time(sim_data)
+  
+  # Add noise control variables
+  sim_data$noise1 <- rnorm(nrow(sim_data), 0, 1)
+  sim_data$noise2 <- rnorm(nrow(sim_data), 2, 3)
+  
+}
+
+
+
+for(i in 1:1000000) {
+  x <- rnorm(1, 0, 1)
+  
+  if(abs(x) > 4) {
+    print(i)
+    print(x)
+  }
+}
+
 
 
 
