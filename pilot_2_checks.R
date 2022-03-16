@@ -48,6 +48,7 @@ data <- data %>%
          gender = as.factor(gender),
          major = as.factor(major))
 
+
 # Checking differences between first session and others
 data <- data %>%
   mutate(first_sesh = if_else(block_number == 1 & sequence_number > 1,
@@ -56,7 +57,14 @@ data <- data %>%
                                       2,
                                       0)))
 
-# Check distributions of craving in blue/yellow for optimal/cravers
+
+# Betting rate in yellow, seq 1, others and all
+mean(data$choice[data$block_type == 'C' & data$sequence_number == 1])
+mean(data$choice[data$block_type == 'C' & data$sequence_number != 1])
+mean(data$choice[data$block_type == 'C'])
+
+
+##### Check distributions of craving in blue/yellow for optimal/cravers #####
 data_dists <- data %>%
   group_by(id, block_type, craver) %>%
   summarize(betting_rate = mean(choice, na.rm=TRUE)) %>%
@@ -187,7 +195,6 @@ data_sesh <- data %>%
 
 summary(aov(betting_rate ~ factor(first_sesh), data = data_sesh))
 
-<<<<<<< Updated upstream
 ggplot(data_sesh, aes(x = factor(first_sesh), y = betting_rate)) +
   geom_boxplot() +
   scale_x_discrete(name = 'Session',
@@ -196,8 +203,6 @@ ggplot(data_sesh, aes(x = factor(first_sesh), y = betting_rate)) +
   labs(title = 'Test treatment (blue sessions)',
        y = 'Betting rate') +
   theme_minimal()
-=======
->>>>>>> Stashed changes
 
 
 
