@@ -63,6 +63,22 @@ mean(data$choice[data$block_type == 'C' & data$sequence_number == 1])
 mean(data$choice[data$block_type == 'C' & data$sequence_number != 1])
 mean(data$choice[data$block_type == 'C'])
 
+# Fraction of yellow sessions with 1 bet
+yellow_bet_count <- data %>%
+  filter(block_type == 'C') %>%
+  group_by(id, block_number, sequence_number) %>%
+  summarize(bets = sum(choice))
+
+sum(yellow_bet_count$bets > 0)/nrow(yellow_bet_count)
+
+# Fraction cravers when craving is betting twice
+cravers_count <- data %>%
+  filter(block_type == 'C') %>%
+  group_by(id) %>%
+  summarize(bets = sum(choice))
+
+sum(cravers_count$bets > 1)/nrow(cravers_count)
+
 
 ##### Check distributions of craving in blue/yellow for optimal/cravers #####
 data_dists <- data %>%
@@ -93,6 +109,29 @@ ggplot(data_dists, aes(betting_rate)) +
 
 ggsave('betting_rates_hist_pilot_yellow_c.png', width = 10, height = 7)
 
+
+# Betting rates in yellow by treat
+data_dists <- data %>%
+  filter(block_type == 'C') %>%
+  group_by(id, treatment) %>%
+  summarize(betting_rate = mean(choice, na.rm=TRUE)) %>%
+  ungroup()
+
+
+# Plot
+ggplot(data_dists, aes(x = treatment, y = betting_rate)) +
+  geom_boxplot() +
+  scale_x_discrete(breaks = c('control', 'test'),
+                   labels = c('Control', 'Test'),
+                   name = 'Treatment') +
+  scale_y_continuous(breaks = seq(0, 0.55, 0.05),
+                     name = 'Betting rate') +
+  labs(title = 'In yellow sessions') +
+  theme_minimal()
+
+ggsave('betting_rates_pilot_yellow_treat_test.png', width = 10, height = 7)
+
+psych::describe(data_dists$betting_rate[data_dists$treatment == 'control'])
 
 # Effect sizes
 

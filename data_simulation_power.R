@@ -239,7 +239,7 @@ mod = glmer(choice ~ factor(reward_value) + factor(uncertainty) +
 
 summary(mod)
 
-#### THe following tests will be run ####
+#### The following tests will be run ####
 
 # Test 1
 # Paired, one-tailed t-test
