@@ -17,19 +17,22 @@ data <- data %>%
 sum(data$choice == 2)
 
 # Iterate through data and add exposure time and previous choice
-for(i in 1:nrow(data)) {
+# Initialize exposure time as 0
+e_time <- 0
+for (i in 1:nrow(data)) {
   
-  if(i == 1 & data$block_type[i] == 'S') {
-    data$exposure_time[i] <- 0
-  } else if(i == 1 & data$block_type[i] == 'C') {
-    data$exposure_time[i] <- NA
-  } else if(data$block_type[i] == 'S' & data$block_type[i-1] == 'S' &
-            data$id[i] == data$id[i-1]) {
-    data$exposure_time[i] <- data$exposure_time[i-1] + 1
-  } else if(data$block_type[i] == 'S') {
-    data$exposure_time[i] <- 0
+  data$exposure_time[i] <- e_time
+  
+  # Increment exposure time if not pass
+  if (data$block_type[i] == 'S') {
+    if (data$outcome[i] > 0) {
+      e_time <- e_time + 1
+    }
+  } else {
+    e_time <- 0
   }
   
+  # Add previous choice
   if(i != 1) {
     if(data$id[i] == data$id[i-1]) {
       data$previous_choice[i] <- data$choice[i - 1]
@@ -59,13 +62,15 @@ data <- data %>%
 
 
 # Betting rate in yellow, seq 1, others and all
-mean(data$choice[data$block_type == 'C' & data$sequence_number == 1])
-mean(data$choice[data$block_type == 'C' & data$sequence_number != 1])
-mean(data$choice[data$block_type == 'C'])
+data %>%
+  filter(block_type == 'C' &
+           #sequence_number != 1 &
+           treatment == 'control') %>%
+  summarize(mean = mean(choice))
 
 # Fraction of yellow sessions with 1 bet
 yellow_bet_count <- data %>%
-  filter(block_type == 'C') %>%
+  filter(block_type == 'C' & treatment == 'test') %>%
   group_by(id, block_number, sequence_number) %>%
   summarize(bets = sum(choice))
 
@@ -73,12 +78,62 @@ sum(yellow_bet_count$bets > 0)/nrow(yellow_bet_count)
 
 # Fraction cravers when craving is betting twice
 cravers_count <- data %>%
-  filter(block_type == 'C') %>%
+  filter(block_type == 'C' & treatment == 'test') %>%
   group_by(id) %>%
   summarize(bets = sum(choice))
 
 sum(cravers_count$bets > 1)/nrow(cravers_count)
 
+
+#### Answers to pre-game and MCQ ####
+
+# Pre-game questions (control/test)
+data %>%
+  group_by(id, treatment) %>%
+  summarize(pre_game = mean(pre_game_strategy)) %>%
+  ungroup() %>%
+  count(pre_game, treatment)
+
+
+# MCQ accuracy test/control/overall
+data %>%
+  # filter(treatment == 'control') %>%
+  group_by(id) %>%
+  summarize(MCQ1 = mean(MCQ_Q1),
+            MCQ2 = mean(MCQ_Q2),
+            MCQ3 = mean(MCQ_Q3),
+            MCQ4 = mean(MCQ_Q4),
+            MCQ5 = mean(MCQ_Q5),
+            MCQ6 = mean(MCQ_Q6)) %>%
+  ungroup() %>%
+  apply(MARGIN = 2, FUN = mean)
+
+
+#### Betting rates control/test vs. yellow/blue for cravers ####
+data_plot <- data %>%
+  filter(craver == 1) %>%
+  group_by(treatment, block_type) %>%
+  summarize(betting_rate = mean(choice),
+            se = se(choice)) %>%
+  ungroup()
+
+
+ggplot(data_plot, aes(x = treatment, y = betting_rate, fill = block_type)) +
+  geom_bar(stat='identity', position = position_dodge(.9)) +
+  geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
+                position = position_dodge(.9), width = .2) +
+  scale_x_discrete(name = 'Treatment',
+                   breaks = c('control', 'test'),
+                   labels = c('Control', 'Test')) +
+  scale_y_continuous(name = 'Betting rate') +
+  scale_fill_manual(name = 'Session color',
+                    breaks = c('C', 'S'),
+                    labels = c('Yellow', 'Blue'),
+                    values = c('#ffd700', '#0057b7')) +
+  theme_minimal()
+
+
+ggsave('betting_rate_by_col_and_treat.png', width = 10, height = 8)
 
 ##### Check distributions of craving in blue/yellow for optimal/cravers #####
 data_dists <- data %>%
@@ -131,7 +186,7 @@ ggplot(data_dists, aes(x = treatment, y = betting_rate)) +
 
 ggsave('betting_rates_pilot_yellow_treat_test.png', width = 10, height = 7)
 
-psych::describe(data_dists$betting_rate[data_dists$treatment == 'control'])
+psych::describe(data_dists$betting_rate[data_dists$treatment == 'test'])
 
 # Effect sizes
 

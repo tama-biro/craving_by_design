@@ -155,8 +155,8 @@ add_exposure_time <- function(data) {
     data$exposure_time[i] <- e_time
     
     # Increment exposure time if not pass
-    if (data$win_chance[i + 1] == 0.8) {
-      if (data$outcome[i + 1] != 0) {
+    if (data$win_chance[i] == 0.8) {
+      if (data$outcome[i] != 0) {
         e_time <- e_time + 1
       }
     } else {
@@ -225,21 +225,9 @@ sim_data = data.frame(ID = rep(1:N, each = 600),
                       craver = c(rep(0, 600*N*0.4), 
                                  rep(1, 600*N*0.6)))
 
-# Simulation
-tm <- proc.time()
+#### Simulation ####
 
-sim_data = simulate_choice_vk2(sim_data)
-
-proc.time() - tm
-
-mod = glmer(choice ~ factor(reward_value) + factor(uncertainty) + 
-              factor(craver) + factor(win_chance) * factor(treat) + 
-              (1 | ID), data = sim_data, 
-            family = binomial(link='logit'))
-
-summary(mod)
-
-#### The following tests will be run ####
+## The following tests will be run ##
 
 # Test 1
 # Paired, one-tailed t-test
@@ -287,7 +275,35 @@ summary(mod)
 # Difference low/high uncertainty in yellow
 # High = higher betting
 
-for (i in 1:1000) {
+# Create list for storing results
+power_list <- list(
+  't1' = list('t' = c(), 'power' = c()),
+  't2' = list(
+    'b_rew' = c(),
+    'b_unc' = c(),
+    'b_int' = c(),
+    'power_r' = c(),
+    'power_u' = c(),
+    'power_i' = c()
+  ),
+  't3' = list('beta_log' = c(), 'power_log' = c(), 
+              'beta_lin' = c(), 'power_lin' = c()),
+  't4' = list(
+    'b_rew' = c(),
+    'b_unc' = c(),
+    'b_treat' = c(),
+    'power_r' = c(),
+    'power_u' = c(),
+    'power_t' = c()
+  ),
+  't5' = list('t' = c(), 'power' = c()),
+  't6' = list('beta' = c(), 'power' = c()),
+  't7' = list('t' = c(), 'power' = c()),
+  't8' = list('t' = c(), 'power' = c())
+    )
+
+
+for (i in 1:50) {
   
   # Simulate dataset
   sim_data <- simulate_choice_vk2(sim_data)
@@ -299,18 +315,148 @@ for (i in 1:1000) {
   sim_data$noise1 <- rnorm(nrow(sim_data), 0, 1)
   sim_data$noise2 <- rnorm(nrow(sim_data), 2, 3)
   
-}
-
-
-
-for(i in 1:1000000) {
-  x <- rnorm(1, 0, 1)
+  # Test 1
+  d1 <- sim_data %>%
+    filter(win_chance == 0.2) %>%
+    group_by(ID, reward_value) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup() %>%
+    mutate(reward = factor(reward_value,
+                           levels = 1:2,
+                           labels = c('Low', 'High')))
   
-  if(abs(x) > 4) {
-    print(i)
-    print(x)
-  }
+  t1 <- t.test(betting_rate ~ reward_value, data = d1, paired = TRUE)
+  
+  # Save results
+  power_list$t1$t <- append(power_list$t1$t, t1$statistic)
+  power_list$t1$power <- append(power_list$t1$power, t1$p.value/2)
+  
+  
+  # Test 2
+  t2 <- glmer(choice ~ factor(reward_value) + factor(uncertainty) +
+                factor(win_chance) * factor(treat) + factor(previous_choice) +
+                scale(noise1) + scale(noise2) + (1 | ID),
+              data = sim_data, family = binomial(link = 'logit'))
+  
+  s <- summary(t2)
+  
+  # Save results
+  power_list$t2$b_rew <- append(power_list$t2$b_rew, s$coefficients[2, 1])
+  power_list$t2$power_r <- append(power_list$t2$power_r, s$coefficients[2, 3])
+  power_list$t2$b_unc <- append(power_list$t2$b_unc, s$coefficients[3, 1])
+  power_list$t2$power_u <- append(power_list$t2$power_u, s$coefficients[3, 3])
+  power_list$t2$b_int <- append(power_list$t2$b_int, s$coefficients[9, 1])
+  power_list$t2$power_i <- append(power_list$t2$power_i, s$coefficients[9, 3])
+  
+  
+  # Test 3
+  d2 <- sim_data %>%
+    filter(win_chance == 0.2) %>%
+    group_by(ID, treat) %>%
+    summarize(betting_rate = mean(choice),
+              noise1 = mean(noise1),
+              noise2 = mean(noise2),
+              craver = sum(choice)) %>%
+    ungroup() %>%
+    mutate(craver = if_else(craver > 0, 1, 0))
+  
+  t3_log <- glm(craver ~ treat + noise1 + noise2,
+                data = d2, family = binomial(link = 'logit'))
+  
+  s_log <- summary(t3_log)
+  
+  t3_lin <- lm(betting_rate ~ treat + noise1 + noise2, data = d2)
+  
+  s_lin <- summary(t3_lin)
+  
+  # Save results
+  power_list$t3$beta_log <- append(power_list$t3$beta_log, s_log$coefficients[2, 1])
+  power_list$t3$power_log <- append(power_list$t3$power_log, s_log$coefficients[2, 3])
+  power_list$t3$beta_lin <- append(power_list$t3$beta_lin, s_lin$coefficients[2, 1])
+  power_list$t3$power_lin <- append(power_list$t3$power_lin, s_lin$coefficients[2, 3])
+  
+  
+  # Test 4
+  t4 <- glmer(choice ~ factor(reward_value) + factor(uncertainty) +
+                factor(treat) + factor(previous_choice) +
+                scale(noise1) + scale(noise2) + (1 | ID),
+              data = sim_data[sim_data$win_chance == 0.2, ], 
+              family = binomial(link = 'logit'))
+  
+  s4 <- summary(t4)
+  
+  # Save results
+  power_list$t4$b_rew <- append(power_list$t4$b_rew, s4$coefficients[2, 1])
+  power_list$t4$power_r <- append(power_list$t4$power_r, s4$coefficients[2, 3])
+  power_list$t4$b_unc <- append(power_list$t4$b_unc, s4$coefficients[3, 1])
+  power_list$t4$power_u <- append(power_list$t4$power_u, s4$coefficients[3, 3])
+  power_list$t4$b_treat <- append(power_list$t4$b_treat, s4$coefficients[4, 1])
+  power_list$t4$power_t <- append(power_list$t4$power_t, s4$coefficients[4, 3])
+  
+  
+  # Test 5
+  d5 <- sim_data %>%
+    filter(win_chance == 0.8) %>%
+    group_by(ID, treat) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup()
+  
+  t5 <- t.test(betting_rate ~ treat, data = d5)
+  
+  # Save results
+  power_list$t5$t <- append(power_list$t5$t, t5$statistic)
+  power_list$t5$power <- append(power_list$t5$power, t5$p.value/2)
+  
+  
+  # Test 6
+  t6 <- glmer(choice ~ factor(reward_value) + factor(uncertainty) +
+                factor(treat) + factor(previous_choice) +
+                scale(noise1) + scale(noise2) + scale(exposure_time) +
+                (1 | ID),
+              data = sim_data[sim_data$win_chance == 0.8, ], 
+              family = binomial(link = 'logit'))
+  
+  s6 <- summary(t6)
+  
+  # Save results
+  power_list$t6$beta <- append(power_list$t6$beta, s6$coefficients[8, 1])
+  power_list$t6$power <- append(power_list$t6$power, s6$coefficients[8, 3])
+  
+  
+  # Test 7
+  d7 <- sim_data %>%
+    filter(win_chance == 0.2 & treat == 'test') %>%
+    group_by(ID) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup()
+  
+  t7 <- t.test(d7$betting_rate, mu = 0)
+  
+  # Save results
+  power_list$t7$t <- append(power_list$t7$t, t7$statistic)
+  power_list$t7$power <- append(power_list$t7$power, t7$p.value/2)
+  
+  
+  # Test 8
+  d8 <- sim_data %>%
+    filter(win_chance == 0.2) %>%
+    group_by(ID, uncertainty) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup() %>%
+    mutate(uncertainty = factor(uncertainty,
+                           levels = c(1, 0.5),
+                           labels = c('Low', 'High')))
+  
+  t8 <- t.test(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  
+  # Save results
+  power_list$t8$t <- append(power_list$t8$t, t8$statistic)
+  power_list$t8$power <- append(power_list$t8$power, t8$p.value/2)
 }
+
+
+
+
 
 
 
