@@ -1,0 +1,269 @@
+
+library(tidyverse)
+library(effectsize)
+library(janitor)
+
+# Loading pilot data
+data <- read.csv(file.choose())
+
+# SE function
+se <- function (x) {
+  se = sd(x, na.rm = TRUE)/sqrt(length(x))
+  return(se)
+}
+
+#### Data processing ####
+
+# Make block_type and treatment factors
+data <- data %>%
+  mutate(block_type = as.factor(block_type),
+         treatment = as.factor(treatment),
+         exposure_time = NA,
+         previous_choice = NA)
+
+# Number of missed trials (choice = 2)
+# This is when participants take too long to answer and automatically skip
+sum(data$choice == 2)
+
+# Iterate through data and add exposure time and previous choice
+# Initialize exposure time as 0
+e_time <- 0
+for (i in 1:nrow(data)) {
+  
+  data$exposure_time[i] <- e_time
+  
+  # Increment exposure time if not pass
+  if (data$block_type[i] == 'S') {
+    if (data$outcome[i] > 0) {
+      e_time <- e_time + 1
+    }
+  } else {
+    e_time <- 0
+  }
+  
+  # Add previous choice
+  if(i != 1) {
+    if(data$id[i] == data$id[i-1]) {
+      data$previous_choice[i] <- data$choice[i - 1]
+    }
+  }
+}
+
+# Remove bets where trials are missed
+# Recode reward and uncertainty variable, make gender and major factors
+data <- data %>%
+  filter(choice != 2) %>%
+  mutate(aaron_mood = factor(aaron_mood, levels = 1:0,
+                             labels = c('Low', 'High')),
+         reward_value = factor(reward_value, levels = 1:2,
+                               labels = c('Low', 'High')),
+         gender = as.factor(gender),
+         major = as.factor(major))
+
+
+# Removing sequence 1 from dataset and making craving variables
+data <- data %>%
+  filter(sequence_number != 1) %>%
+  group_by(id) %>%
+  mutate(craver = if_else(sum(choice[block_type == 'C']) > 0, 1, 0),
+         craver_2 = if_else(sum(choice[block_type == 'C']) > 1, 1, 0)) %>%
+  ungroup
+
+#### Pilot checks ####
+
+
+# 1. Fraction of cravers
+data %>%
+  group_by(id, treatment, craver_2) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  group_by(treatment) %>%
+  summarize(avg = mean(craver_2), n = n()) %>%
+  ungroup %>%
+  bind_rows(summarize(., treatment = "Total",
+                      avg = sum(avg * n) / sum(n),
+                      n = sum(n))) %>%
+  mutate(cravers = avg * n)
+
+
+# 2. Betting rates in blue/yellow
+data %>%
+  filter(craver_2 == 1 & block_type == 'C') %>%
+  group_by(id, treatment) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  group_by(treatment) %>%
+  summarize(avg = mean(betting_rate),
+            n = n()) %>%
+  ungroup %>%
+  bind_rows(summarize(., treatment = "Total",
+                      avg = sum(avg * n) / sum(n),
+                      n = sum(n)))
+
+
+# 3. Pre-game strategy and post-game MCQ
+
+# Pre-game questions (control/test)
+data %>%
+  group_by(id, craver_2) %>%
+  summarize(pre_game = mean(pre_game_strategy)) %>%
+  ungroup() %>%
+  count(pre_game, craver_2)
+
+
+# MCQ accuracy test/control/overall
+data %>%
+  filter(craver_2 == 0) %>%
+  # filter(treatment == 'control') %>%
+  group_by(id) %>%
+  summarize(MCQ1 = mean(MCQ_Q1),
+            MCQ2 = mean(MCQ_Q2),
+            MCQ3 = mean(MCQ_Q3),
+            MCQ4 = mean(MCQ_Q4),
+            MCQ5 = mean(MCQ_Q5),
+            MCQ6 = mean(MCQ_Q6)) %>%
+  ungroup() %>%
+  apply(MARGIN = 2, FUN = mean)
+
+
+# 4. Plots plots and more plots
+
+# Betting rate in blue/yellow for test/control
+data_plot <- data %>%
+#  filter(craver_2 == 1) %>%
+  group_by(treatment, block_type, id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  group_by(treatment, block_type) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate)) %>%
+  ungroup
+  
+
+
+ggplot(data_plot, aes(x = treatment, y = betting_rate, fill = block_type)) +
+  geom_bar(stat='identity', position = position_dodge(.9)) +
+  geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
+                position = position_dodge(.9), width = .2) +
+  scale_x_discrete(name = 'Treatment',
+                   breaks = c('control', 'test'),
+                   labels = c('Control', 'Test')) +
+  scale_y_continuous(name = 'Betting rate') +
+  scale_fill_manual(name = 'Session color',
+                    breaks = c('C', 'S'),
+                    labels = c('Yellow', 'Blue'),
+                    values = c('#ffd700', '#0057b7')) +
+  theme_minimal()
+
+
+ggsave('betting_rate_by_col_and_treat_all.png', width = 10, height = 8)
+
+# Betting rates in yellow by treat
+data_dists <- data %>%
+  filter(block_type == 'C' & craver_2 == 1) %>%
+  group_by(id, treatment) %>%
+  summarize(betting_rate = mean(choice, na.rm=TRUE)) %>%
+  ungroup()
+
+
+# Plot
+ggplot(data_dists, aes(x = treatment, y = betting_rate)) +
+  geom_boxplot() +
+  scale_x_discrete(breaks = c('control', 'test'),
+                   labels = c('Control', 'Test'),
+                   name = 'Treatment') +
+  scale_y_continuous(breaks = seq(0, 0.55, 0.05),
+                     name = 'Betting rate') +
+  labs(title = 'In yellow sessions') +
+  theme_minimal()
+
+ggsave('betting_rates_box_yellow_treat_test.png', width = 10, height = 7)
+
+
+# Betting rate by exposure time for cravers and optimals
+
+data_plot <- data %>%
+  filter(block_type == 'S' & treatment == 'test') %>%
+  group_by(exposure_time, craver_2, id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  group_by(exposure_time, craver_2) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
+  ungroup
+
+ggplot(data_plot, aes(x = exposure_time,
+                      y = betting_rate,
+                      col = factor(craver_2))) +
+  geom_line() +
+  scale_color_manual(name = 'Type', breaks = c(0, 1),
+                     labels = c('Optimal', 'Craver'),
+                     values = c('#151AD4', '#E32424')) +
+  labs(x = 'Exposure time', y = 'Betting rate') +
+  theme_minimal()
+
+ggsave('betting_exposure_blue_test.png', width = 10, height = 7)
+
+
+# Betting rate in first and second half of blue blocks
+
+data_plot <- data %>%
+  filter(craver_2 == 0 & block_type == 'S' & block_number > 12) %>%
+  group_by(id, treatment) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  group_by(treatment) %>%
+  summarize(avg = mean(betting_rate),
+            se = se(betting_rate),
+            n = n()) %>%
+  ungroup %>%
+  bind_rows(summarize(., treatment = "Total",
+                      avg = sum(avg * n) / sum(n),
+                      se = sum(se * n) / sum(n),
+                      n = sum(n)))
+
+ggplot(data_plot, aes(x = treatment, y = avg)) +
+  geom_bar(stat = 'identity',
+           position = position_dodge(0.7),
+           width = 0.5,
+           fill = '#151AD4') +
+  geom_errorbar(aes(ymin = avg - se, ymax = avg + se),
+                position = position_dodge(0.7),
+                width = 0.2) +
+  scale_x_discrete(name = 'Treatment', breaks = c('control', 'test', 'Total'),
+                   labels = c('Control', 'Test', 'Total')) +
+  labs(y = 'Betting rate', title = 'Second half of blue session') +
+  theme_minimal()
+
+ggsave('betting_rate_blue_halves_second.png', width = 10, height = 7)
+
+
+# 5. Descriptives of betting rates 
+
+# By session color
+data_desc <- data %>%
+  group_by(id, block_type) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup
+
+psych::describeBy(data_desc$betting_rate, group = data_desc$block_type)
+
+# By treatment
+data_desc <- data %>%
+  filter(block_type == 'C') %>%
+  group_by(id, treatment) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup
+
+psych::describeBy(data_desc$betting_rate, group = data_desc$treatment)
+
+# By craver/optimal
+data_desc <- data %>%
+  filter(block_type == 'S') %>%
+  group_by(id, craver_2) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup
+
+psych::describeBy(data_desc$betting_rate, group = data_desc$craver_2)
+
+
