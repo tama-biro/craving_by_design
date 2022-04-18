@@ -213,28 +213,31 @@ ggsave('betting_rates_box_yellow_treat_test.png', width = 10, height = 7)
 # Betting rate by exposure time for cravers and optimals
 
 data_plot <- data %>%
-  filter(block_type == 'S' & treatment == 'control') %>%
+  filter(block_type == 'S' & treatment == 'test') %>%
   mutate(exp_bins = as.numeric(cut_number(exposure_time, 5)),
          exp_num = cut_number(exposure_time, 5)) %>%
-  group_by(exposure_time, craver_2, id) %>%
+  group_by(exp_bins, craver_2, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
-  group_by(exposure_time, craver_2) %>%
+  group_by(exp_bins, craver_2) %>%
   summarize(se = se(betting_rate),
             betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
   ungroup
 
-ggplot(data_plot, aes(x = exposure_time,
+ggplot(data_plot, aes(x = exp_bins,
                       y = betting_rate,
                       col = factor(craver_2))) +
   geom_line() +
+  geom_errorbar(aes(ymin = betting_rate - se,
+                    ymax = betting_rate + se),
+                width = 0.2) +
   scale_color_manual(name = 'Type', breaks = c(0, 1),
                      labels = c('Optimal', 'Craver'),
                      values = c('#151AD4', '#E32424')) +
   labs(x = 'Exposure time', y = 'Betting rate') +
   theme_minimal()
 
-ggsave('betting_exposure_blue_control.png', width = 10, height = 7)
+ggsave('betting_exposure_blue_test_bins.png', width = 10, height = 7)
 
 
 # Betting rate in first and second half of blue blocks
