@@ -77,38 +77,46 @@ data <- data %>%
 
 #### Pilot checks ####
 
-# Check of excluded participants
-data %>%
+# Check for excluded participants
+id1 <- data %>%
   filter(craver == 1) %>%
   group_by(id, treatment) %>%
   summarize(post_game = mean(post_game_quiz_correct)) %>%
   ungroup %>%
-  filter(post_game == 0)
+  filter(post_game == 0) %>%
+  select(id) %>%
+  as.numeric
 
-data %>%
+id2 <- data %>%
   filter(craver == 1) %>%
   group_by(id, treatment) %>%
   slice_head(n = 1) %>%
   summarize(odds_guess = sum(odds_guess_one_did_win,
                              odds_guess_two_did_win,
                              odds_guess_three_did_win,
-                             na.rm = TRUE)) %>%
+                             na.rm = TRUE),
+            odds_guess_na = sum(!is.na(odds_guess_one_did_win),
+                                !is.na(odds_guess_two_did_win),
+                                !is.na(odds_guess_three_did_win),
+                                na.rm = TRUE)) %>%
   ungroup %>%
-  filter(odds_guess >= 2)
+  filter(odds_guess < 0.5*odds_guess_na) %>%
+  select(id) %>%
+  rbind(id1)
 
 
 # Remove excluded
 data <- data %>%
-  filter(!(id %in% c(2, 8, 11, 15, 23)))
+  filter(!(id %in% id2$id))
 
 
 # 1. Fraction of cravers
 data %>%
-  group_by(id, treatment, craver_2) %>%
+  group_by(id, treatment, craver) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
   group_by(treatment) %>%
-  summarize(avg = mean(craver_2), n = n()) %>%
+  summarize(avg = mean(craver), n = n()) %>%
   ungroup %>%
   bind_rows(summarize(., treatment = "Total",
                       avg = sum(avg * n) / sum(n),
@@ -118,7 +126,7 @@ data %>%
 
 # 2. Betting rates in blue/yellow
 data %>%
-  filter(craver_2 == 0 & block_type == 'C') %>%
+  filter(craver_2 == 1 & block_type == 'C') %>%
   group_by(id, treatment) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
@@ -135,10 +143,10 @@ data %>%
 
 # Pre-game questions (control/test)
 data %>%
-  group_by(id, treatment) %>%
-  summarize(pre_game = mean(pre_game_strategy)) %>%
+  group_by(id, craver_2) %>%
+  slice_head(n = 1) %>%
   ungroup() %>%
-  count(pre_game, treatment)
+  count(pre_game_strategy, craver_2)
 
 
 # MCQ accuracy test/control/overall
@@ -160,7 +168,7 @@ data %>%
 
 # Betting rate in blue/yellow for test/control
 data_plot <- data %>%
-  filter(craver_2 == 0) %>%
+#  filter(craver_2 == 1) %>%
   group_by(treatment, block_type, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
@@ -193,7 +201,7 @@ data_dists <- data %>%
   filter(block_type == 'C' & craver_2 == 1) %>%
   group_by(id, treatment) %>%
   summarize(betting_rate = mean(choice, na.rm=TRUE)) %>%
-  ungroup()
+  ungroup
 
 
 # Plot
@@ -213,7 +221,7 @@ ggsave('betting_rates_box_yellow_treat_test.png', width = 10, height = 7)
 # Betting rate by exposure time for cravers and optimals
 
 data_plot <- data %>%
-  filter(block_type == 'S' & treatment == 'test') %>%
+  filter(block_type == 'S' & treatment == 'control') %>%
   mutate(exp_bins = as.numeric(cut_number(exposure_time, 5)),
          exp_num = cut_number(exposure_time, 5)) %>%
   group_by(exp_bins, craver_2, id) %>%
@@ -237,13 +245,13 @@ ggplot(data_plot, aes(x = exp_bins,
   labs(x = 'Exposure time', y = 'Betting rate') +
   theme_minimal()
 
-ggsave('betting_exposure_blue_test_bins.png', width = 10, height = 7)
+ggsave('betting_exposure_blue_control_bins.png', width = 10, height = 7)
 
 
 # Betting rate in first and second half of blue blocks
 
 data_plot <- data %>%
-  filter(craver_2 == 0 & block_type == 'S' & block_number < 13) %>%
+  filter(craver_2 == 0 & block_type == 'S' & block_number > 12) %>%
   group_by(id, treatment) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
@@ -267,10 +275,10 @@ ggplot(data_plot, aes(x = treatment, y = avg)) +
                 width = 0.2) +
   scale_x_discrete(name = 'Treatment', breaks = c('control', 'test', 'Total'),
                    labels = c('Control', 'Test', 'Total')) +
-  labs(y = 'Betting rate', title = 'First half of blue session') +
+  labs(y = 'Betting rate', title = 'Second half of blue session') +
   theme_minimal()
 
-ggsave('betting_rate_blue_halves_first.png', width = 10, height = 7)
+ggsave('betting_rate_blue_halves_second.png', width = 10, height = 7)
 
 
 # 5. Descriptives of betting rates 
@@ -294,7 +302,7 @@ psych::describeBy(data_desc$betting_rate, group = data_desc$treatment)
 
 # By craver/optimal
 data_desc <- data %>%
-  filter(block_type == 'C') %>%
+  filter(block_type == 'S') %>%
   group_by(id, craver_2) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup
