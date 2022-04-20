@@ -61,11 +61,28 @@ for(i in idx) {
 
 compare_inter <- data %>%
   filter(!is.na(yellow_23) & block_type == 'C') %>%
-  group_by(id, yellow_23) %>%
+  group_by(id, yellow_23, sequence_number) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
-  group_by(yellow_23) %>%
+  group_by(yellow_23, sequence_number) %>%
   summarize(mean = mean(betting_rate))
+
+# Plot
+ggplot(compare_inter, aes(x = sequence_number,
+                          y = mean,
+                          color = factor(yellow_23))) +
+  geom_line() +
+  scale_color_manual(name = 'Trial order',
+                     breaks = c('0', '1'),
+                     labels = c('First (pink)',
+                                'Second/third (green)'),
+                     values = c('#c40872', '#20b004')) +
+  labs(x = 'Sequence number',
+       y = 'Betting rate') +
+  theme_minimal()
+
+ggsave("bet_by_sequence_and_trial_order.png",
+       width = 10, height = 6)
 
 
 #### Reward asymmetry ####

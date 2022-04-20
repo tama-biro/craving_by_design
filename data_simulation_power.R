@@ -1,6 +1,7 @@
 
 library(tidyverse)
 library(lme4)
+library(rjson)
 
 # Functions to set parameters
 set_alpha <- function() {
@@ -28,7 +29,7 @@ set_lmbda <- function() {
 }
 
 set_beta <- function(varying=TRUE,
-                     lower=0,
+                     lower=20,
                      upper=50,
                      constant_b=30) {
   #' If varying = TRUE, set beta from uniform between bounds
@@ -56,7 +57,7 @@ set_kappa2 <- function() {
 
 set_theta <- function() {
   #' Set theta from uniform
-  theta <- runif(1, 0.5, 1)
+  theta <- runif(1, 0.8, 1)
   
   return(theta)
 }
@@ -152,11 +153,17 @@ add_exposure_time <- function(data) {
   # Loop through data and add exposure time and update value
   for (i in 1:nrow(data)) {
     
-    data$exposure_time[i] <- e_time
+    # If exposure time is 0, assign zero
+    # Else assign craving variable
+    if (e_time == 0) {
+      data$exposure_time[i] <- 0
+    } else {
+      data$exposure_time[i] <- sum(0.9^(0:(e_time-1)))
+    }
     
     # Increment exposure time if not pass
     if (data$win_chance[i] == 0.8) {
-      if (data$outcome[i] != 0) {
+      if (data$outcome[i] > 0) {
         e_time <- e_time + 1
       }
     } else {
@@ -455,9 +462,9 @@ for (i in 1:50) {
 }
 
 
-
-
-
+power_list %>% 
+  toJSON(indent=0, method="C" ) %>%
+  write("test.json")
 
 
 
