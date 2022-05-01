@@ -462,6 +462,16 @@ for (i in 1:100) {
   # Save results
   power_list$t8$t <- append(power_list$t8$t, t8$statistic)
   power_list$t8$power <- append(power_list$t8$power, t8$p.value/2)
+  
+  # Save every 10 iterations
+  if(i %% 10 == 0) {
+    power_list %>% 
+      toJSON(indent=0, method="C" ) %>%
+      write("test.json")
+    
+    
+    json_file <- "C:/Users/samue/Documents/simulation_v2_1.json"
+  }
 }
 
 
@@ -470,7 +480,7 @@ power_list %>%
   write("test.json")
 
 
-json_file <- "C:/Users/samue/Documents/simulation1.json"
+json_file <- "C:/Users/samue/Documents/simulation_v2_1.json"
 
 power_list1 <- json_file %>%
   readLines %>%
