@@ -1,5 +1,6 @@
 
 library(tidyverse)
+library(truncnorm)
 library(lme4)
 library(rjson)
 
@@ -15,7 +16,7 @@ set_alpha <- function() {
 set_lmbda <- function() {
   #' Setting lambda from LA meta-analysis paper, p.26
   #' The estimated overall mean 1.955, 95% CI [1.824, 2.104]
-  #' half-normal with abs(X)
+  #' truncated normal with truncnorm a = 0
   
   # 'Brown, Alexander L. and Imai, Taisuke and Vieider, Ferdinand and Camerer, Colin F., 
   #' Meta-Analysis of Empirical Estimates of Loss-Aversion (2021). 
@@ -23,7 +24,7 @@ set_lmbda <- function() {
   #' Available at SSRN: 
   #" https://ssrn.com/abstract=3772089
   
-  lmbda <- abs(rnorm(1, 1.955, 0.14))
+  lmbda <- rtruncnorm(1, a = 0, b = Inf, mean = 1.955, sd = 0.14)
   
   return(lmbda)
 }
@@ -50,7 +51,7 @@ set_kappa1 <- function() {
 
 set_kappa2 <- function() {
   #' Set kappa2 from uniform
-  kappa2 <- runif(1, 0.4, 1)
+  kappa2 <- runif(1, 0.2, 1)
   
   return(kappa2)
 }
@@ -82,7 +83,7 @@ simulate_choice_vk2 = function(sim_data) {
     reward_value = sim_data$reward_value[i]
     uncertainty = sim_data$uncertainty[i]
     
-    v = uncertainty*(win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
+    v = win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2
     
     p_bet = 1/(1 + exp(-beta*v))
     
@@ -102,23 +103,29 @@ simulate_choice_vk2 = function(sim_data) {
       sim_data$outcome[i] = 0
     }
     
-    if(sim_data$craver[i]) {
-      if(back_k > 0) {
-        
-        # implementation of varying K from Payzan-LeNestour & Doran (2022), 1.2.2
-        outcomes = sim_data %>%
-          slice((i-back_k):i) %>%
-          filter(outcome != 0) %>%
-          select(outcome)
-        
-        if(nrow(outcomes)) {
-          u = sum(if_else(outcomes$outcome > 0, 1, 0)*theta^(i-(i-nrow(outcomes)+1):i))
-          
-          K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
-        }
+    if(back_k > 0) {
+      
+      # implementation of varying K from Payzan-LeNestour & Doran (2022), 1.2.2
+      outcomes = sim_data %>%
+        slice((i-back_k):i) %>%
+        filter(outcome != 0) %>%
+        select(outcome)
+      
+      # To get the effect of uncertainty, set theta_x to 1 for high uncertainty
+      # theta_x is theta otherwise
+      if(uncertainty == 0.5) {
+        theta_x <- 1
+      } else {
+        theta_x <- theta
       }
       
+      if(nrow(outcomes)) {
+        u = sum(if_else(outcomes$outcome > 0, 1, 0)*theta_x^(i-(i-nrow(outcomes)+1):i))
+        
+        K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
+      }
     }
+
     
     # Restart if we change repetition
     if(i %% 100 == 0) {
@@ -226,9 +233,7 @@ sim_data = data.frame(ID = rep(1:N, each = 600),
                                         600), 
                                     rep('control', 
                                         600)), 
-                                  N/2),
-                      craver = c(rep(0, 600*N*0.4), 
-                                 rep(1, 600*N*0.6)))
+                                  N/2))
 
 #### Simulation ####
 
@@ -308,7 +313,7 @@ power_list <- list(
 )
 
 
-for (i in 1:50) {
+for (i in 1:100) {
   
   # Simulate dataset
   sim_data <- simulate_choice_vk2(sim_data)
@@ -363,7 +368,7 @@ for (i in 1:50) {
               noise2 = mean(noise2),
               craver = sum(choice)) %>%
     ungroup() %>%
-    mutate(craver = if_else(craver > 0, 1, 0))
+    mutate(craver = if_else(craver > 1, 1, 0))
   
   t3_log <- glm(craver ~ treat + noise1 + noise2,
                 data = d2, family = binomial(link = 'logit'))
