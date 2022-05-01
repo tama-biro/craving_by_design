@@ -29,7 +29,7 @@ set_lmbda <- function() {
 }
 
 set_beta <- function(varying=TRUE,
-                     lower=20,
+                     lower=0,
                      upper=50,
                      constant_b=30) {
   #' If varying = TRUE, set beta from uniform between bounds
@@ -57,7 +57,7 @@ set_kappa2 <- function() {
 
 set_theta <- function() {
   #' Set theta from uniform
-  theta <- runif(1, 0.8, 1)
+  theta <- runif(1, 0.5, 1)
   
   return(theta)
 }
@@ -86,9 +86,7 @@ simulate_choice_vk2 = function(sim_data) {
     
     p_bet = 1/(1 + exp(-beta*v))
     
-    if(sim_data$craver[i]) {
-      p_bet = K + (1 - K)*p_bet
-    }
+    p_bet = K + (1 - K)*p_bet
     
     # Make choice
     sim_data$choice[i] = rbinom(1, 1, p_bet)
@@ -307,7 +305,7 @@ power_list <- list(
   't6' = list('beta' = c(), 'power' = c()),
   't7' = list('t' = c(), 'power' = c()),
   't8' = list('t' = c(), 'power' = c())
-    )
+)
 
 
 for (i in 1:50) {
@@ -451,8 +449,8 @@ for (i in 1:50) {
     summarize(betting_rate = mean(choice)) %>%
     ungroup() %>%
     mutate(uncertainty = factor(uncertainty,
-                           levels = c(1, 0.5),
-                           labels = c('Low', 'High')))
+                                levels = c(1, 0.5),
+                                labels = c('Low', 'High')))
   
   t8 <- t.test(betting_rate ~ uncertainty, data = d8, paired = TRUE)
   
@@ -473,7 +471,7 @@ power_list1 <- json_file %>%
   readLines %>%
   paste0 %>%
   fromJSON
-  
+
 
 power_list_mean <- list(
   't1' = list('t' = mean(unlist(power_list1[["t1"]][["t"]])),
@@ -496,7 +494,7 @@ power_list_mean <- list(
               'beta_lin' = mean(power_list1[["t3"]][["beta_lin"]]),
               'power_lin' = sum(abs(power_list1[["t3"]][["power_lin"]]) > 1.96)/
                 length(power_list1[["t3"]][["power_lin"]])
-              ),
+  ),
   't4' = list(
     'b_rew' = mean(power_list1[["t4"]][["b_rew"]]),
     'b_unc' = mean(power_list1[["t4"]][["b_unc"]]),
