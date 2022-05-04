@@ -83,7 +83,7 @@ simulate_choice_vk2 = function(sim_data) {
     reward_value = sim_data$reward_value[i]
     uncertainty = sim_data$uncertainty[i]
     
-    v = win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2
+    v = uncertainty*(win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
     
     p_bet = 1/(1 + exp(-beta*v))
     
@@ -106,21 +106,16 @@ simulate_choice_vk2 = function(sim_data) {
     if(back_k > 0) {
       
       # implementation of varying K from Payzan-LeNestour & Doran (2022), 1.2.2
-      outcomes = sim_data %>%
+      outcomes <- sim_data %>%
         slice((i-back_k):i) %>%
         filter(outcome != 0) %>%
         select(outcome)
       
-      # To get the effect of uncertainty, set theta_x to 1 for high uncertainty
-      # theta_x is theta otherwise
-      if(uncertainty == 0.5) {
-        theta_x <- 1
-      } else {
-        theta_x <- theta
-      }
-      
       if(nrow(outcomes)) {
-        u = sum(if_else(outcomes$outcome > 0, 1, 0)*theta_x^(i-(i-nrow(outcomes)+1):i))
+        
+        k_outcomes <- if_else(outcomes$outcome > 0, outcomes$outcome + 0.7, 0)
+        
+        u = sum(k_outcomes*theta^(i-(i-nrow(outcomes)+1):i))
         
         K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
       }
