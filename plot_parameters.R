@@ -3,31 +3,31 @@
 # Distributions of parameters
 
 # Alpha
-c_alpha <- rep(set_alpha(), 200)
-hist(c_alpha)
+c_alpha <- rbeta(200, 22, 3)
+hist(c_alpha, main = "Alpha")
 
 # Beta
-c_beta <- rep(set_beta(), 200)
-hist(c_beta)
+c_beta <- runif(200, 0, 50)
+hist(c_beta, main = "Beta")
 
 # Lambda
-c_lambda <- rep(set_lmbda(), 200)
-hist(c_lambda)
+c_lambda <- rtruncnorm(200, a = 0, b = Inf, mean = 1.955, sd = 0.14)
+hist(c_lambda, main = "Lambda")
 
 # Kappa 1
-c_kappa_1 <- rep(set_kappa1(), 200)
-hist(c_kappa_1)
+c_kappa_1 <- runif(200, 0.1, 1)
+hist(c_kappa_1, main = "Kappa 1")
 
 # Kappa 2
-c_kappa_2 <- rep(set_kappa2(), 200)
-hist(c_kappa_2)
+c_kappa_2 <- runif(200, 0.2, 1)
+hist(c_kappa_2, main = "Kappa 2")
 
 # Theta
-c_theta <- rep(set_theta(), 200)
-hist(c_theta)
+c_theta <- runif(200, 0.5, 1)
+hist(c_theta, main = "Theta")
 
 # Unc
-c_unc <- rep(set_unc(), 200)
-hist(c_unc)
+c_unc <- runif(200, 2, 5)
+hist(c_unc, main = "Uncertainty")
 
 

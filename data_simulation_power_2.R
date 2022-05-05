@@ -65,7 +65,7 @@ set_theta <- function() {
 
 set_unc <- function(upper = 3) {
   #' Set unc from uniform
-  unc <- runif(2, upper)
+  unc <- runif(1, 2, upper)
   
   return(unc)
 }
@@ -91,7 +91,8 @@ simulate_choice_vk2 = function(sim_data) {
     uncertainty = sim_data$uncertainty[i]
     
     if(uncertainty == 0.5) {
-      unc <- set_unc()
+#      unc <- set_unc()
+      unc <- 1
     } else {
       unc <- 1
     }
