@@ -63,6 +63,13 @@ set_theta <- function() {
   return(theta)
 }
 
+set_unc <- function(upper = 3) {
+  #' Set unc from uniform
+  unc <- runif(2, upper)
+  
+  return(unc)
+}
+
 # Timestop version of data simulation
 simulate_choice_vk2 = function(sim_data) {
   
@@ -83,7 +90,15 @@ simulate_choice_vk2 = function(sim_data) {
     reward_value = sim_data$reward_value[i]
     uncertainty = sim_data$uncertainty[i]
     
-    v = uncertainty*(win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
+    if(uncertainty == 0.5) {
+      unc <- set_unc()
+    } else {
+      unc <- 1
+    }
+    
+    v <- (win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
+    
+    v <- unc*uncertainty*v
     
     p_bet = 1/(1 + exp(-beta*v))
     
