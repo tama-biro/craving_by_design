@@ -12,7 +12,7 @@ data_plot <- sim_data %>%
   mutate(craver = sum(choice[win_chance == 0.2]),
          craver = if_else(craver > 1, 1, 0)) %>%
   ungroup %>%
-  filter(craver == 1) %>%
+#  filter(craver == 1) %>%
   group_by(treat, win_chance) %>%
   summarize(betting_rate = mean(choice),
             se = se(choice)) %>%
@@ -36,27 +36,16 @@ ggplot(data_plot, aes(x = treat, y = betting_rate,
   theme_minimal()
 
 
-ggsave('betting_rate_by_col_and_treat_all1.png', width = 10, height = 8)
+ggsave('betting_rate_by_col_and_treat_all2.png', width = 10, height = 8)
 
 
-# Distribtions by treatment 
+# Distributions by treatment 
 data_dists <- sim_data %>%
   group_by(ID) %>%
   mutate(craver = sum(choice[win_chance == 0.2]),
          craver = if_else(craver > 1, 1, 0)) %>%
   ungroup %>%
-  group_by(ID, win_chance, craver) %>%
-  summarize(betting_rate = mean(choice, na.rm=TRUE)) %>%
-  ungroup() %>%
-  filter(win_chance == 0.2)
-
-
-data_dists <- sim_data %>%
-  group_by(ID) %>%
-  mutate(craver = sum(choice[win_chance == 0.2]),
-         craver = if_else(craver > 1, 1, 0)) %>%
-  ungroup %>%
-  filter(win_chance == 0.8 & craver == 1) %>%
+  filter(win_chance == 0.2 & craver == 1) %>%
   group_by(ID, treat) %>%
   summarize(betting_rate = mean(choice, na.rm=TRUE)) %>%
   ungroup
@@ -68,24 +57,73 @@ ggplot(data_dists, aes(x = treat, y = betting_rate)) +
   scale_x_discrete(breaks = c('control', 'test'),
                    labels = c('Control', 'Test'),
                    name = 'Treatment') +
-  labs(title = 'In blue sessions', y = "Betting Rate") +
+  labs(title = 'In yellow sessions', y = "Betting Rate") +
   theme_minimal()
 
-ggsave('betting_rates_box_blue_treat1.png', width = 10, height = 7)
+ggsave('betting_rates_box_yellow_treat2.png', width = 10, height = 7)
 
 
 
 # Check betting rate for craver/optimal in b/y
-sim_data %>%
-  group_by(ID) %>%
-  mutate(craver = sum(choice[win_chance == 0.2]),
-         craver = if_else(craver > 1, 1, 0)) %>%
-  ungroup %>%
-  group_by(ID, win_chance, craver) %>%
-  summarize(betting_rate = mean(choice, na.rm = TRUE)) %>%
-  group_by(win_chance, craver) %>%
-  summarize(betting_rate = mean(betting_rate, na.rm = TRUE))
+for(i in 1:5) {
+  sim_data <- simulate_choice_vk2(sim_data)
+  
+  sim_data %>%
+    group_by(ID) %>%
+    mutate(craver = sum(choice[win_chance == 0.2]),
+           craver = if_else(craver > 1, 1, 0)) %>%
+    ungroup %>%
+    group_by(ID, win_chance, craver) %>%
+    summarize(betting_rate = mean(choice, na.rm = TRUE)) %>%
+    group_by(win_chance, craver) %>%
+    summarize(betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
+    print
+}
 
+
+
+# Different values of UNC
+win_chance <- c(0.2, 0.8)
+reward_value <- 1:2
+UNC <- seq(2, 10, by = 0.25)
+
+unc_params <- expand_grid(win_chance, reward_value, UNC)
+unc_params$p_bet <- NA
+
+alpha_1 <- alpha_2 <- 0.8
+lmbda <- 1.955
+beta <- 10
+
+for(i in 1:nrow(unc_params)) {
+  win_chance = unc_params$win_chance[i]
+  loss_chance = 1 - win_chance
+  reward_value = unc_params$reward_value[i]
+  unc <- unc_params$UNC[i]
+  
+  v <- (win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
+  
+  v <- unc*0.5*v
+  
+  p_bet = 1/(1 + exp(-beta*v))
+  
+  unc_params$p_bet[i] <- p_bet
+}
+
+unc_params$reward_value <- factor(unc_params$reward_value,
+                                  levels = 1:2,
+                                  labels = c("Low", "High"))
+unc_params$win_chance <- factor(unc_params$win_chance,
+                                levels = c(0.2, 0.8),
+                                labels = c("Yellow", "Blue"))
+
+ggplot(unc_params, aes(x = UNC, y = p_bet,
+                       color = factor(reward_value))) +
+  geom_line(size = 1.2) +
+  labs(color = "Reward value", y = "P(bet)") +
+  theme_minimal() +
+  facet_wrap("win_chance")
+
+ggsave("unc_pbet.png", width = 10, height = 8)
 
 
 
