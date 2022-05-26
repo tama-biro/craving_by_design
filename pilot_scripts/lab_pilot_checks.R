@@ -77,7 +77,7 @@ data <- data %>%
 
 # Check for excluded participants
 id1 <- data %>%
-  filter(craver == 1) %>%
+  filter(craver_2 == 1) %>%
   group_by(id, treatment) %>%
   summarize(post_game = mean(post_game_quiz_correct)) %>%
   ungroup %>%
@@ -85,7 +85,7 @@ id1 <- data %>%
   select(id)
 
 id2 <- data %>%
-  filter(craver == 1) %>%
+  filter(craver_2 == 1) %>%
   group_by(id, treatment) %>%
   slice_head(n = 1) %>%
   summarize(odds_guess = sum(odds_guess_one_did_win,
@@ -110,7 +110,7 @@ data <- data %>%
 # Removing sequence 1 from dataset and making craving variables
 # Comment out filter line if not removing seq 1
 data <- data %>%
-  filter((sequence_number != 1 & batch == 0)) %>%
+  filter(!(sequence_number == 1 & batch == 0)) %>%
   group_by(id) %>%
   mutate(craver = if_else(sum(choice[block_type == 'C']) > 0, 1, 0),
          craver_2 = if_else(sum(choice[block_type == 'C']) > 1, 1, 0)) %>%
@@ -118,11 +118,11 @@ data <- data %>%
 
 # 1. Fraction of cravers
 data %>%
-  group_by(id, treatment, craver_2) %>%
+  group_by(id, treatment, craver) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
   group_by(treatment) %>%
-  summarize(avg = mean(craver_2), n = n()) %>%
+  summarize(avg = mean(craver), n = n()) %>%
   ungroup %>%
   bind_rows(summarize(., treatment = "Total",
                       avg = sum(avg * n) / sum(n),
@@ -132,7 +132,7 @@ data %>%
 
 # 2. Betting rates in blue/yellow
 data %>%
-  filter(craver_2 == 0 & block_type == 'C') %>%
+  filter(craver_2 == 1 & block_type == 'C') %>%
   group_by(id, treatment) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
@@ -176,7 +176,7 @@ data %>%
 data_plot <- data %>%
   mutate(yellow_23 = if_else(is.na(yellow_23), 2, yellow_23)) %>%
    filter(
-#    craver_2 == 1 &
+    craver_2 == 1 &
     yellow_23 != 1
       ) %>%
   group_by(treatment, block_type, id) %>%
@@ -203,7 +203,7 @@ ggplot(data_plot, aes(x = treatment, y = betting_rate, fill = block_type)) +
   theme_minimal()
 
 
-ggsave('betting_rate_by_col_and_treat_all.png', width = 10, height = 8)
+ggsave('betting_rate_by_col_and_treat_cravers.png', width = 10, height = 8)
 
 # Betting rates in yellow by treat
 data_dists <- data %>%
@@ -221,7 +221,7 @@ ggplot(data_dists, aes(x = treatment, y = betting_rate)) +
   scale_x_discrete(breaks = c('control', 'test'),
                    labels = c('Control', 'Test'),
                    name = 'Treatment') +
-  scale_y_continuous(breaks = seq(0, .95, 0.05),
+  scale_y_continuous(breaks = seq(0, 1, 0.05),
                      name = 'Betting rate') +
   # scale_y_continuous(breaks = seq(.85, 1, 0.025),
   #                    name = 'Betting rate') +
@@ -236,11 +236,11 @@ ggsave('betting_rates_box_yellow_treat_test.png', width = 10, height = 7)
 data_plot <- data %>%
   filter(
     block_type == 'S'
-#    & treatment == 'control'
+#    & treatment == 'test'
 #    & craver_2 == 1
     ) %>%
-  mutate(exp_bins = as.numeric(cut_interval(exposure_time, 5)),
-         exp_num = cut_interval(exposure_time, 5)) %>%
+  mutate(exp_bins = as.numeric(cut_interval(exposure_time, 7)),
+         exp_num = cut_interval(exposure_time, 7)) %>%
   group_by(exp_bins, craver_2, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
@@ -259,16 +259,17 @@ ggplot(data_plot, aes(x = exp_bins,
   scale_color_manual(name = 'Type', breaks = c(0, 1),
                      labels = c('Optimal', 'Craver'),
                      values = c('#151AD4', '#E32424')) +
-  labs(x = 'Exposure time', y = 'Betting rate') +
+  labs(x = 'Exposure time', y = 'Betting rate',
+       title = "7 bins") +
   theme_minimal()
 
-ggsave('betting_exposure_blue_all_bins.png', width = 10, height = 7)
+ggsave('betting_exposure_blue_all_bins_7.png', width = 10, height = 7)
 
 
 # Betting rate in first and second half of blue blocks
 
 data_plot <- data %>%
-  filter(craver_2 == 0 & block_type == 'S' & block_number < 13) %>%
+  filter(craver_2 == 0 & block_type == 'S' & block_number > 12) %>%
   group_by(id, treatment) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
@@ -292,10 +293,10 @@ ggplot(data_plot, aes(x = treatment, y = avg)) +
                 width = 0.2) +
   scale_x_discrete(name = 'Treatment', breaks = c('control', 'test', 'Total'),
                    labels = c('Control', 'Test', 'Total')) +
-  labs(y = 'Betting rate', title = 'First half of blue session') +
+  labs(y = 'Betting rate', title = 'Second half of blue session') +
   theme_minimal()
 
-ggsave('betting_rate_blue_halves_first.png', width = 10, height = 7)
+ggsave('betting_rate_blue_halves_second.png', width = 10, height = 7)
 
 
 # 5. Descriptives of betting rates 

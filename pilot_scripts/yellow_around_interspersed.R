@@ -60,7 +60,8 @@ for(i in idx) {
 
 
 compare_inter <- data %>%
-  filter(!is.na(yellow_23) & block_type == 'C') %>%
+  filter(!is.na(yellow_23) & block_type == 'C' &
+           treatment == 'control') %>%
   group_by(id, yellow_23, sequence_number) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
@@ -121,7 +122,7 @@ for(i in idx[2:length(idx)]) {
 }
 
 data %>%
-  filter(!is.na(reward_diff) & block_type == 'C') %>%
+  filter(!is.na(reward_diff) & block_type == 'S') %>%
   group_by(id, reward_diff) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%

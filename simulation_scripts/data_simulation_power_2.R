@@ -78,21 +78,13 @@ simulate_choice_vk2 <- function(sim_data) {
   back_k <- 0
   K <- 0
   
-  # alpha_1 <- alpha_2 <- set_alpha()
-  # lmbda <- set_lmbda()
-  # beta <- set_beta()
-  # kappa_1 <- set_kappa1()
-  # kappa_2 <- set_kappa2()
-  # theta <- set_theta()
-  # unc <- set_unc()
-  
-  alpha_1 <- alpha_2 <- 1
-  lmbda <- 1
-  beta <- set_beta(lower = 10)
-  kappa_1 <- 0.5
-  kappa_2 <- 0.5
-  theta <- .9
-  unc <- 2
+  alpha_1 <- alpha_2 <- set_alpha()
+  lmbda <- set_lmbda()
+  beta <- set_beta()
+  kappa_1 <- set_kappa1()
+  kappa_2 <- set_kappa2()
+  theta <- set_theta()
+  unc <- set_unc()
   
   for(i in 1:nrow(sim_data)) {
     win_chance <- sim_data$win_chance[i]
@@ -108,11 +100,7 @@ simulate_choice_vk2 <- function(sim_data) {
     
     p_bet <- 1/(1 + exp(-beta*v))
     
-    sim_data$p_bet[i] <- p_bet
-    
     p_bet <- K + (1 - K)*p_bet
-    
-#    sim_data$p_bet[i] <- p_bet
     
     # Make choice
     sim_data$choice[i] <- rbinom(1, 1, p_bet)
@@ -157,22 +145,13 @@ simulate_choice_vk2 <- function(sim_data) {
     
     # Set parameters for new participant
     if(i %% 600 == 0) {
-      sim_data$beta[sim_data$ID == sim_data$ID[i]] <- beta
-      # alpha_1 <- alpha_2 <- set_alpha()
-      # lmbda <- set_lmbda()
-      # beta <- set_beta()
-      # kappa_1 <- set_kappa1()
-      # kappa_2 <- set_kappa2()
-      # theta <- set_theta()
-      # unc <- set_unc()
-      
-      alpha_1 <- alpha_2 <- 1
-      lmbda <- 1
-      beta <- set_beta(lower = 10)
-      kappa_1 <- 0.5
-      kappa_2 <- 0.5
-      theta <- .9
-      unc <- 2
+      alpha_1 <- alpha_2 <- set_alpha()
+      lmbda <- set_lmbda()
+      beta <- set_beta()
+      kappa_1 <- set_kappa1()
+      kappa_2 <- set_kappa2()
+      theta <- set_theta()
+      unc <- set_unc()
     }
     
   }

@@ -87,8 +87,7 @@ sim_data <- sim_data %>%
   mutate(ID = rep(1:N, each = 600),
          treat = rep(c(rep('test', 600), 
                        rep('control', 600)), 
-                     N/2),
-         UNC = NA)
+                     N/2))
 
 
 
