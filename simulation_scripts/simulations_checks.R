@@ -12,7 +12,7 @@ data_plot <- sim_data %>%
   mutate(craver = sum(choice[win_chance == 0.2]),
          craver = if_else(craver > 1, 1, 0)) %>%
   ungroup %>%
-#  filter(craver == 1) %>%
+  filter(craver == 1) %>%
   group_by(treat, win_chance) %>%
   summarize(betting_rate = mean(choice),
             se = se(choice)) %>%
@@ -32,11 +32,11 @@ ggplot(data_plot, aes(x = treat, y = betting_rate,
                     breaks = c("0.2", "0.8"),
                     labels = c('Yellow', 'Blue'),
                     values = c('#ffd700', '#0057b7')) +
-  labs(title = "Overall") +
+  labs(title = "Cravers") +
   theme_minimal()
 
 
-ggsave('betting_rate_by_col_and_treat_all2.png', width = 10, height = 8)
+ggsave('betting_rate_by_col_and_treat_beta10.png', width = 10, height = 8)
 
 
 # Distributions by treatment 

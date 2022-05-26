@@ -64,7 +64,7 @@ compare_inter <- data %>%
   group_by(id, yellow_23, sequence_number) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
-  group_by(yellow_23, sequence_number) %>%
+  group_by(yellow_23) %>%
   summarize(mean = mean(betting_rate))
 
 # Plot
@@ -121,7 +121,7 @@ for(i in idx[2:length(idx)]) {
 }
 
 data %>%
-  filter(!is.na(reward_diff) & block_type == 'S') %>%
+  filter(!is.na(reward_diff) & block_type == 'C') %>%
   group_by(id, reward_diff) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%

@@ -24,7 +24,7 @@ set_lmbda <- function() {
   #' Available at SSRN: 
   #" https://ssrn.com/abstract=3772089
   
-  lmbda <- rtruncnorm(1, a = 0, b = Inf, mean = 1.955, sd = 0.14)
+  lmbda <- rtruncnorm(1, a = 0, b = 3, mean = 1.955, sd = 0.5)
   
   return(lmbda)
 }
@@ -51,19 +51,20 @@ set_kappa1 <- function() {
 
 set_kappa2 <- function() {
   #' Set kappa2 from uniform
-  kappa2 <- runif(1, 0.2, 1)
+  kappa2 <- rtruncnorm(1, a = 0.2, b = 1, mean = 0.3, sd = 0.2)
   
   return(kappa2)
 }
 
 set_theta <- function() {
   #' Set theta from uniform
-  theta <- runif(1, 0.5, 1)
+#  theta <- runif(1, 0.5, 1)
+  theta <- rtruncnorm(1, a = 0.5, b = 1, mean = 0.9, sd = 0.2)
   
   return(theta)
 }
 
-set_unc <- function(upper = 3) {
+set_unc <- function(upper = 15) {
   #' Set unc from uniform
   unc <- runif(1, 2, upper)
   
@@ -71,52 +72,60 @@ set_unc <- function(upper = 3) {
 }
 
 # Timestop version of data simulation
-simulate_choice_vk2 = function(sim_data) {
+simulate_choice_vk2 <- function(sim_data) {
   
   # Set up parameters for first participant
-  back_k = 0
-  K = 0
+  back_k <- 0
+  K <- 0
   
-  alpha_1 = alpha_2 = set_alpha()
-  lmbda = set_lmbda()
-  beta = set_beta()
-  kappa_1 = set_kappa1()
-  kappa_2 = set_kappa2()
-  theta = set_theta()
+  # alpha_1 <- alpha_2 <- set_alpha()
+  # lmbda <- set_lmbda()
+  # beta <- set_beta()
+  # kappa_1 <- set_kappa1()
+  # kappa_2 <- set_kappa2()
+  # theta <- set_theta()
+  # unc <- set_unc()
+  
+  alpha_1 <- alpha_2 <- 1
+  lmbda <- 1
+  beta <- set_beta(lower = 10)
+  kappa_1 <- 0.5
+  kappa_2 <- 0.5
+  theta <- .9
+  unc <- 2
   
   for(i in 1:nrow(sim_data)) {
-    win_chance = sim_data$win_chance[i]
-    loss_chance = 1 - win_chance
-    reward_value = sim_data$reward_value[i]
-    uncertainty = sim_data$uncertainty[i]
-    
-    if(uncertainty == 0.5) {
-#      unc <- set_unc()
-      unc <- 1
-    } else {
-      unc <- 1
-    }
+    win_chance <- sim_data$win_chance[i]
+    loss_chance <- 1 - win_chance
+    reward_value <- sim_data$reward_value[i]
+    uncertainty <- sim_data$uncertainty[i]
     
     v <- (win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
     
-    v <- unc*uncertainty*v
+    if(uncertainty == 0.5) {
+      v <- unc*uncertainty*v
+    }
     
-    p_bet = 1/(1 + exp(-beta*v))
+    p_bet <- 1/(1 + exp(-beta*v))
     
-    p_bet = K + (1 - K)*p_bet
+    sim_data$p_bet[i] <- p_bet
+    
+    p_bet <- K + (1 - K)*p_bet
+    
+#    sim_data$p_bet[i] <- p_bet
     
     # Make choice
-    sim_data$choice[i] = rbinom(1, 1, p_bet)
+    sim_data$choice[i] <- rbinom(1, 1, p_bet)
     
     # Play game
     if(sim_data$choice[i]) {
       if(rbinom(1, 1, uncertainty)) {
-        sim_data$outcome[i] = rbinom(1, 1, win_chance)*reward_value - 0.7
+        sim_data$outcome[i] <- rbinom(1, 1, win_chance)*reward_value - 0.7
       } else {
-        sim_data$outcome[i] = 0
+        sim_data$outcome[i] <- 0
       }
     } else {
-      sim_data$outcome[i] = 0
+      sim_data$outcome[i] <- 0
     }
     
     if(back_k > 0) {
@@ -131,29 +140,39 @@ simulate_choice_vk2 = function(sim_data) {
         
         k_outcomes <- if_else(outcomes$outcome > 0, outcomes$outcome + 0.7, 0)
         
-        u = sum(k_outcomes*theta^(i-(i-nrow(outcomes)+1):i))
+        u <- sum(k_outcomes*theta^(i-(i-nrow(outcomes)+1):i))
         
-        K = max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
+        K <- max(1/(1+exp(-kappa_1*u))-kappa_2, 0)
       }
     }
 
     
     # Restart if we change repetition
     if(i %% 100 == 0) {
-      back_k = 0
-      K = 0
+      back_k <- 0
+      K <- 0
     } else {
-      back_k = back_k + 1
+      back_k <- back_k + 1
     }
     
     # Set parameters for new participant
     if(i %% 600 == 0) {
-      alpha_1 = alpha_2 = set_alpha()
-      lmbda = set_lmbda()
-      beta = set_beta()
-      kappa_1 = set_kappa1()
-      kappa_2 = set_kappa2()
-      theta = set_theta()
+      sim_data$beta[sim_data$ID == sim_data$ID[i]] <- beta
+      # alpha_1 <- alpha_2 <- set_alpha()
+      # lmbda <- set_lmbda()
+      # beta <- set_beta()
+      # kappa_1 <- set_kappa1()
+      # kappa_2 <- set_kappa2()
+      # theta <- set_theta()
+      # unc <- set_unc()
+      
+      alpha_1 <- alpha_2 <- 1
+      lmbda <- 1
+      beta <- set_beta(lower = 10)
+      kappa_1 <- 0.5
+      kappa_2 <- 0.5
+      theta <- .9
+      unc <- 2
     }
     
   }
@@ -174,17 +193,18 @@ add_exposure_time <- function(data) {
     if (e_time == 0) {
       data$exposure_time[i] <- 0
     } else {
-      data$exposure_time[i] <- sum(0.9^(0:(e_time-1)))
+      out_hist <- if_else(data$outcome[(i-e_time):(i-1)] > 0, 1, 0)
+      
+      data$exposure_time[i] <- sum(out_hist*0.9^((e_time-1):0))
     }
     
-    # Increment exposure time if not pass
-    if (data$win_chance[i] == 0.8) {
-      if (data$outcome[i] > 0) {
-        e_time <- e_time + 1
-      }
-    } else {
+    # Reset if new sequence
+    if(((i+1) %% 100) == 0) {
       e_time <- 0
+    } else {
+      e_time <- e_time + 1
     }
+
     
     # Add previous choice
     if(i != 1) {
@@ -244,7 +264,8 @@ sim_data = data.frame(ID = rep(1:N, each = 600),
                                         600), 
                                     rep('control', 
                                         600)), 
-                                  N/2))
+                                  N/2),
+                      UNC = NA)
 
 #### Simulation ####
 
