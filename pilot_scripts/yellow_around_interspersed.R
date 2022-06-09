@@ -7,7 +7,7 @@ idx <- which(
   & data$round_number == 1
   & data$block_type == 'S'
   & data$block_number < 6
-  )
+)
 
 
 
