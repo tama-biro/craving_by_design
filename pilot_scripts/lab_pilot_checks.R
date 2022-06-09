@@ -18,12 +18,12 @@ se <- function (x) {
 data <- data %>%
   filter(!(batch == 1 &
              block_type == "S" &
-             block_number == 1 &
-             sequence_number == 1)) %>%
+             block_number == 1)) %>%
   mutate(block_type = as.factor(block_type),
          treatment = as.factor(treatment),
          exposure_time = NA,
-         previous_choice = NA)
+         previous_choice = NA,
+         block_number = if_else(batch == 1, block_number - 1, as.numeric(block_number)))
 
 # Number of missed trials (choice = 2)
 # This is when participants take too long to answer and automatically skip
@@ -71,7 +71,11 @@ data <- data %>%
          reward_value = factor(reward_value, levels = 1:2,
                                labels = c('Low', 'High')),
          gender = as.factor(gender),
-         major = as.factor(major))
+         major = as.factor(major)) %>%
+  group_by(id) %>%
+  mutate(craver = if_else(sum(choice[block_type == 'C']) > 0, 1, 0),
+         craver_2 = if_else(sum(choice[block_type == 'C']) > 1, 1, 0)) %>%
+  ungroup
 
 #### Pilot checks ####
 
@@ -110,11 +114,7 @@ data <- data %>%
 # Removing sequence 1 from dataset and making craving variables
 # Comment out filter line if not removing seq 1
 data <- data %>%
-  filter(!(sequence_number == 1 & batch == 0)) %>%
-  group_by(id) %>%
-  mutate(craver = if_else(sum(choice[block_type == 'C']) > 0, 1, 0),
-         craver_2 = if_else(sum(choice[block_type == 'C']) > 1, 1, 0)) %>%
-  ungroup
+  filter(!(sequence_number == 1 & batch == 0))
 
 # 1. Fraction of cravers
 data %>%
@@ -239,11 +239,12 @@ data_plot <- data %>%
 #    & treatment == 'test'
 #    & craver_2 == 1
     ) %>%
-  mutate(exp_bins = as.numeric(cut_interval(exposure_time, 7)),
-         exp_num = cut_interval(exposure_time, 7)) %>%
+  mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
+         exp_num = cut_interval(exposure_time, 3)) %>%
   group_by(exp_bins, craver_2, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
+  filter(betting_rate > .6) %>%
   group_by(exp_bins, craver_2) %>%
   summarize(se = se(betting_rate),
             betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
@@ -260,10 +261,10 @@ ggplot(data_plot, aes(x = exp_bins,
                      labels = c('Optimal', 'Craver'),
                      values = c('#151AD4', '#E32424')) +
   labs(x = 'Exposure time', y = 'Betting rate',
-       title = "7 bins") +
+       title = "3 bins - outlier removed") +
   theme_minimal()
 
-ggsave('betting_exposure_blue_all_bins_7.png', width = 10, height = 7)
+ggsave('betting_exposure_blue_all_bins_3_outlier_removed.png', width = 10, height = 7)
 
 
 # Betting rate in first and second half of blue blocks

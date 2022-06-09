@@ -1,4 +1,9 @@
 
+library(tidyverse)
+library(truncnorm)
+library(lme4)
+library(rjson)
+
 #### Version 1 - Low beta + prospect ####
 
 # Create list for storing results
@@ -183,10 +188,7 @@ for (i in 1:100) {
   if(i %% 10 == 0) {
     power_list %>% 
       toJSON(indent=0, method="C" ) %>%
-      write("test.json")
-    
-    
-    json_file <- "C:/Users/samue/Documents/simulation_v3_1.json"
+      write("C:/Users/samue/Documents/simulation_v3_1.json")
   }
 }
 
@@ -500,10 +502,7 @@ for (i in 1:100) {
   if(i %% 10 == 0) {
     power_list %>% 
       toJSON(indent=0, method="C" ) %>%
-      write("test.json")
-    
-    
-    json_file <- "C:/Users/samue/Documents/simulation_v3_2.json"
+      write("C:/Users/samue/Documents/simulation_v3_2.json")
   }
 }
 
@@ -816,10 +815,7 @@ for (i in 1:100) {
   if(i %% 10 == 0) {
     power_list %>% 
       toJSON(indent=0, method="C" ) %>%
-      write("test.json")
-    
-    
-    json_file <- "C:/Users/samue/Documents/simulation_v3_3.json"
+      write("C:/Users/samue/Documents/simulation_v3_3.json")
   }
 }
 
@@ -1132,9 +1128,9 @@ for (i in 1:100) {
   if(i %% 10 == 0) {
     power_list %>% 
       toJSON(indent=0, method="C" ) %>%
-      write("test.json")
-    
-    
-    json_file <- "C:/Users/samue/Documents/simulation_v3_4.json"
+      write("C:/Users/samue/Documents/simulation_v3_4.json")
   }
 }
+
+# Shutdown
+system('shutdown -s -f')
