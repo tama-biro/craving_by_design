@@ -8,8 +8,10 @@ library(rjson)
 set_alpha <- function() {
   # E(X) = alpha/(alpha+beta)
   # For E(X) = 0.88, we can use 22/(22+3)
-  alpha <- rbeta(1, 22, 3)
+  # alpha <- rbeta(1, 22, 3)
   
+  # risk neutral
+  alpha <- rbeta(1, 99, 1)
   return(alpha)
 }
 
@@ -24,7 +26,10 @@ set_lmbda <- function() {
   #' Available at SSRN: 
   #" https://ssrn.com/abstract=3772089
   
-  lmbda <- rtruncnorm(1, a = 0, b = 3, mean = 1.955, sd = 0.5)
+  # lmbda <- rtruncnorm(1, a = 0, b = 3, mean = 1.955, sd = 0.5)
+  
+  # loss neutral
+  lmbda <- rtruncnorm(1, a = 0, b = 3, mean = 1, sd = 0.5)
   
   return(lmbda)
 }
@@ -44,14 +49,16 @@ set_beta <- function(varying=TRUE,
 
 set_kappa1 <- function() {
   #' Set kappa1 from uniform
-  kappa1 <- runif(1, 0.1, 1)
+  # kappa1 <- runif(1, 0.1, 1)
+  
+  kappa1 <- rtruncnorm(1, a = 0.05, b = 0.2, mean = 0.1, sd = 0.05)
   
   return(kappa1)
 }
 
 set_kappa2 <- function() {
   #' Set kappa2 from uniform
-  kappa2 <- rtruncnorm(1, a = 0.2, b = 1, mean = 0.3, sd = 0.2)
+  kappa2 <- rtruncnorm(1, a = 0.6, b = 0.8, mean = 0.7, sd = 0.2)
   
   return(kappa2)
 }
@@ -59,12 +66,12 @@ set_kappa2 <- function() {
 set_theta <- function() {
   #' Set theta from uniform
 #  theta <- runif(1, 0.5, 1)
-  theta <- rtruncnorm(1, a = 0.5, b = 1, mean = 0.9, sd = 0.2)
+  theta <- rtruncnorm(1, a = 0.9, b = 1, mean = 0.95, sd = 0.2)
   
   return(theta)
 }
 
-set_unc <- function(upper = 15) {
+set_unc <- function(upper = 10) {
   #' Set unc from uniform
   unc <- runif(1, 2, upper)
   
@@ -94,8 +101,14 @@ simulate_choice_vk2 <- function(sim_data) {
     
     v <- (win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
     
+    # Implement UNC parameter if high uncertainty
     if(uncertainty == 0.5) {
-      v <- unc*uncertainty*v
+      # Inverse of xi for yellow session
+      if(win_chance == 0.2) {
+        v <- (1/unc)*uncertainty*v
+      } else {
+        v <- unc*uncertainty*v
+      }
     }
     
     p_bet <- 1/(1 + exp(-beta*v))
@@ -121,7 +134,6 @@ simulate_choice_vk2 <- function(sim_data) {
       # implementation of varying K from Payzan-LeNestour & Doran (2022), 1.2.2
       outcomes <- sim_data %>%
         slice((i-back_k):i) %>%
-        filter(outcome != 0) %>%
         select(outcome)
       
       if(nrow(outcomes)) {
@@ -491,7 +503,8 @@ power_list %>%
   write("test.json")
 
 
-json_file <- "C:/Users/samue/Documents/simulation_v2_1.json"
+json_file <- "C:/Users/samue/Documents/simulation_v3_1.json"
+json_file <- '/Users/sam/Library/CloudStorage/GoogleDrive-samuel.thelaus@gmail.com/My Drive/Elise Projects/Craving by Design/Documents/Power Simulation/Power JSON/simulation_v3_4.json'
 
 power_list1 <- json_file %>%
   readLines %>%

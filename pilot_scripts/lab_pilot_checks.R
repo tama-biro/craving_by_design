@@ -18,12 +18,13 @@ se <- function (x) {
 data <- data %>%
   filter(!(batch == 1 &
              block_type == "S" &
-             block_number == 1 &
-             sequence_number == 1)) %>%
+             block_number == 1)) %>%
   mutate(block_type = as.factor(block_type),
          treatment = as.factor(treatment),
          exposure_time = NA,
-         previous_choice = NA)
+         previous_choice = NA,
+         block_number = if_else(batch == 1, block_number - 1,
+                                as.numeric(block_number)))
 
 # Number of missed trials (choice = 2)
 # This is when participants take too long to answer and automatically skip
