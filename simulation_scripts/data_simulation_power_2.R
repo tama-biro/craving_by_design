@@ -310,7 +310,7 @@ sim_data = data.frame(ID = rep(1:N, each = 600),
 
 # Create list for storing results
 power_list <- list(
-  't1' = list('t' = c(), 'power' = c()),
+  't1' = list('t' = c(), 'D' = c(), 'power' = c()),
   't2' = list(
     'b_rew' = c(),
     'b_unc' = c(),
@@ -329,10 +329,12 @@ power_list <- list(
     'power_u' = c(),
     'power_t' = c()
   ),
-  't5' = list('t' = c(), 'power' = c()),
+  't5' = list('t' = c(), 'D' = c(), 'power' = c()),
   't6' = list('beta' = c(), 'power' = c()),
-  't7' = list('t' = c(), 'power' = c()),
-  't8' = list('t' = c(), 'power' = c())
+  't7' = list('t' = c(), 'D' = c(), 'power' = c()),
+  't8' = list('t' = c(), 'D' = c(),  'power' = c()),
+  't8_b' = list('t' = c(), 'D' = c(),  'power' = c()),
+  't8_y' = list('t' = c(), 'D' = c(),  'power' = c())
 )
 
 
@@ -359,10 +361,12 @@ for (i in 1:100) {
                            labels = c('Low', 'High')))
   
   t1 <- t.test(betting_rate ~ reward_value, data = d1, paired = TRUE)
+  d <- cohens_d(betting_rate ~ reward_value, data = d1, paired = TRUE)
   
   # Save results
   power_list$t1$t <- append(power_list$t1$t, t1$statistic)
   power_list$t1$power <- append(power_list$t1$power, t1$p.value/2)
+  power_list$t1$D <- append(power_list$t1$D, )
   
   
   # Test 2
@@ -435,10 +439,12 @@ for (i in 1:100) {
     ungroup()
   
   t5 <- t.test(betting_rate ~ treat, data = d5)
+  d <- cohens_d(betting_rate ~ treat, data = d5)
   
   # Save results
   power_list$t5$t <- append(power_list$t5$t, t5$statistic)
   power_list$t5$power <- append(power_list$t5$power, t5$p.value/2)
+  power_list$t5$D <- append(power_list$t5$D, )
   
   
   # Test 6
@@ -464,13 +470,50 @@ for (i in 1:100) {
     ungroup()
   
   t7 <- t.test(d7$betting_rate, mu = 0)
+  d <- cohens_d(d7$betting_rate, mu = 0)
   
   # Save results
   power_list$t7$t <- append(power_list$t7$t, t7$statistic)
   power_list$t7$power <- append(power_list$t7$power, t7$p.value/2)
+  power_list$t7$D <- append(power_list$t7$D, )
   
   
   # Test 8
+  d8 <- sim_data %>%
+    group_by(ID, uncertainty) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup() %>%
+    mutate(uncertainty = factor(uncertainty,
+                                levels = c(1, 0.5),
+                                labels = c('Low', 'High')))
+  
+  t8 <- t.test(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  d <- cohens_d(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  
+  # Save results
+  power_list$t8$t <- append(power_list$t8$t, t8$statistic)
+  power_list$t8$power <- append(power_list$t8$power, t8$p.value/2)
+  power_list$t8$D <- append(power_list$t8$D, )
+  
+  # Test 8.2
+  d8 <- sim_data %>%
+    filter(win_chance == 0.8) %>%
+    group_by(ID, uncertainty) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup() %>%
+    mutate(uncertainty = factor(uncertainty,
+                                levels = c(1, 0.5),
+                                labels = c('Low', 'High')))
+  
+  t8 <- t.test(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  d <- cohens_d(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  
+  # Save results
+  power_list$t8_b$t <- append(power_list$t8_b$t, t8$statistic)
+  power_list$t8_b$power <- append(power_list$t8_b$power, t8$p.value/2)
+  power_list$t8_b$D <- append(power_list$t8_b$D, )
+  
+  # Test 8.3
   d8 <- sim_data %>%
     filter(win_chance == 0.2) %>%
     group_by(ID, uncertainty) %>%
@@ -481,19 +524,18 @@ for (i in 1:100) {
                                 labels = c('Low', 'High')))
   
   t8 <- t.test(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  d <- cohens_d(betting_rate ~ uncertainty, data = d8, paired = TRUE)
   
   # Save results
-  power_list$t8$t <- append(power_list$t8$t, t8$statistic)
-  power_list$t8$power <- append(power_list$t8$power, t8$p.value/2)
+  power_list$t8_y$t <- append(power_list$t8_y$t, t8$statistic)
+  power_list$t8_y$power <- append(power_list$t8_y$power, t8$p.value/2)
+  power_list$t8_y$D <- append(power_list$t8_y$D, )
   
   # Save every 10 iterations
   if(i %% 10 == 0) {
     power_list %>% 
       toJSON(indent=0, method="C" ) %>%
-      write("test.json")
-    
-    
-    json_file <- "C:/Users/samue/Documents/simulation_v2_1.json"
+      write("simulation_v4.1.json")
   }
 }
 
