@@ -2,6 +2,7 @@
 library(tidyverse)
 library(truncnorm)
 library(lme4)
+library(effectsize)
 library(rjson)
 
 # Functions to set parameters
@@ -29,7 +30,7 @@ set_lmbda <- function() {
   # lmbda <- rtruncnorm(1, a = 0, b = 3, mean = 1.955, sd = 0.5)
   
   # loss neutral
-  lmbda <- rtruncnorm(1, a = 0, b = 3, mean = 1, sd = 0.5)
+  lmbda <- rtruncnorm(1, a = 0, b = 2.5, mean = 1, sd = 0.5)
   
   return(lmbda)
 }
@@ -366,7 +367,7 @@ for (i in 1:100) {
   # Save results
   power_list$t1$t <- append(power_list$t1$t, t1$statistic)
   power_list$t1$power <- append(power_list$t1$power, t1$p.value/2)
-  power_list$t1$D <- append(power_list$t1$D, )
+  power_list$t1$D <- append(power_list$t1$D, d$Cohens_d)
   
   
   # Test 2
@@ -444,7 +445,7 @@ for (i in 1:100) {
   # Save results
   power_list$t5$t <- append(power_list$t5$t, t5$statistic)
   power_list$t5$power <- append(power_list$t5$power, t5$p.value/2)
-  power_list$t5$D <- append(power_list$t5$D, )
+  power_list$t5$D <- append(power_list$t5$D, d$Cohens_d)
   
   
   # Test 6
@@ -475,7 +476,7 @@ for (i in 1:100) {
   # Save results
   power_list$t7$t <- append(power_list$t7$t, t7$statistic)
   power_list$t7$power <- append(power_list$t7$power, t7$p.value/2)
-  power_list$t7$D <- append(power_list$t7$D, )
+  power_list$t7$D <- append(power_list$t7$D, d$Cohens_d)
   
   
   # Test 8
@@ -493,7 +494,7 @@ for (i in 1:100) {
   # Save results
   power_list$t8$t <- append(power_list$t8$t, t8$statistic)
   power_list$t8$power <- append(power_list$t8$power, t8$p.value/2)
-  power_list$t8$D <- append(power_list$t8$D, )
+  power_list$t8$D <- append(power_list$t8$D, d$Cohens_d)
   
   # Test 8.2
   d8 <- sim_data %>%
@@ -511,7 +512,7 @@ for (i in 1:100) {
   # Save results
   power_list$t8_b$t <- append(power_list$t8_b$t, t8$statistic)
   power_list$t8_b$power <- append(power_list$t8_b$power, t8$p.value/2)
-  power_list$t8_b$D <- append(power_list$t8_b$D, )
+  power_list$t8_b$D <- append(power_list$t8_b$D, d$Cohens_d)
   
   # Test 8.3
   d8 <- sim_data %>%
@@ -529,7 +530,7 @@ for (i in 1:100) {
   # Save results
   power_list$t8_y$t <- append(power_list$t8_y$t, t8$statistic)
   power_list$t8_y$power <- append(power_list$t8_y$power, t8$p.value/2)
-  power_list$t8_y$D <- append(power_list$t8_y$D, )
+  power_list$t8_y$D <- append(power_list$t8_y$D, d$Cohens_d)
   
   # Save every 10 iterations
   if(i %% 10 == 0) {
