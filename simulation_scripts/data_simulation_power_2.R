@@ -536,7 +536,7 @@ for (i in 1:100) {
   if(i %% 10 == 0) {
     power_list %>% 
       toJSON(indent=0, method="C" ) %>%
-      write("simulation_v4.1.json")
+      write("simulation_v4_2.json")
   }
 }
 

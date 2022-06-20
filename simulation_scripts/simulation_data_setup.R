@@ -1,4 +1,5 @@
 
+library(tidyverse)
 
 make_100_trials_test <- function(block_order) {
   
@@ -23,6 +24,13 @@ make_100_trials_test <- function(block_order) {
     
     trials <- rbind(trials, temp)
   }
+  
+  # Add blue in the beginning
+  start_blue <- data.frame(reward_value = rep(2, 5),
+                           uncertainty = rep(1, 5),
+                           win_chance = rep(0.8, 5))
+  
+  trials <- rbind(start_blue, trials)
   
   return(trials)
   
@@ -50,6 +58,13 @@ make_100_trials_ctrl <- function(block_order) {
 
   # Make win_chance variable to add to df
   trials$win_chance <- rep(c(0.2, rep(0.8, 4)), each = 20)
+  
+  # Add blue in the beginning
+  start_blue <- data.frame(reward_value = rep(2, 5),
+                           uncertainty = rep(1, 5),
+                           win_chance = rep(0.8, 5))
+  
+  trials <- rbind(start_blue, trials)
 
   return(trials)
   
@@ -84,9 +99,9 @@ for(i in 1:N) {
 }
 
 sim_data <- sim_data %>%
-  mutate(ID = rep(1:N, each = 600),
-         treat = rep(c(rep('test', 600), 
-                       rep('control', 600)), 
+  mutate(ID = rep(1:N, each = 630),
+         treat = rep(c(rep('test', 630), 
+                       rep('control', 630)), 
                      N/2))
 
 

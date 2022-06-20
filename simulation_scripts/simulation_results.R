@@ -1,5 +1,5 @@
 
-json_file <- 'simulation_v4.1.json'
+json_file <- 'C:/Users/samue/Documents/simulation_v4_2.json'
 
 power_list1 <- json_file %>%
   readLines %>%
@@ -8,7 +8,7 @@ power_list1 <- json_file %>%
 
 power_list_mean <- list(
   't1' = list('t' = mean(unlist(power_list1[["t1"]][["t"]])),
-              'D' = mean(power_list[["t1"]][["D"]]),
+              'D' = mean(power_list1[["t1"]][["D"]]),
               'power' = sum(power_list1[["t1"]][["power"]] < .05)/
                 length(power_list1[["t1"]][["power"]])),
   't2' = list(
@@ -41,26 +41,26 @@ power_list_mean <- list(
       length(power_list1[["t4"]][["power_t"]])
   ),
   't5' = list('t' = mean(unlist(power_list1[["t5"]][["t"]])),
-              'D' = mean(power_list[["t5"]][["D"]]),
+              'D' = mean(power_list1[["t5"]][["D"]]),
               'power' = sum(power_list1[["t5"]][["power"]] < .05)/
                 length(power_list1[["t5"]][["power"]])),
   't6' = list('beta' = mean(power_list1[["t6"]][["beta"]]),
               'power' = sum(abs(power_list1[["t6"]][["power"]]) > 1.96)/
                 length(power_list1[["t6"]][["power"]])),
   't7' = list('t' = mean(unlist(power_list1[["t7"]][["t"]])),
-              'D' = mean(power_list[["t7"]][["D"]]),
+              'D' = mean(power_list1[["t7"]][["D"]]),
               'power' = sum(power_list1[["t7"]][["power"]] < .05)/
                 length(power_list1[["t7"]][["power"]])),
   't8' = list('t' = mean(unlist(power_list1[["t8"]][["t"]])),
-              'D' = mean(power_list[["t8"]][["D"]]),
+              'D' = mean(power_list1[["t8"]][["D"]]),
               'power' = sum(power_list1[["t8"]][["power"]] < .05)/
                 length(power_list1[["t8"]][["power"]])),
   't8_b' = list('t' = mean(unlist(power_list1[["t8_b"]][["t"]])),
-                'D' = mean(power_list[["t8_b"]][["D"]]),
+                'D' = mean(power_list1[["t8_b"]][["D"]]),
               'power' = sum(power_list1[["t8_b"]][["power"]] < .05)/
                 length(power_list1[["t8_b"]][["power"]])),
   't8_y' = list('t' = mean(unlist(power_list1[["t8_y"]][["t"]])),
-                'D' = mean(power_list[["t8_y"]][["D"]]),
+                'D' = mean(power_list1[["t8_y"]][["D"]]),
               'power' = sum(power_list1[["t8_y"]][["power"]] < .05)/
                 length(power_list1[["t8_y"]][["power"]]))
 )
