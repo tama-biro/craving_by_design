@@ -102,13 +102,17 @@ sim_data <- sim_data %>%
   mutate(ID = rep(1:N, each = 630),
          treat = rep(c(rep('test', 630), 
                        rep('control', 630)), 
-                     N/2))
+                     each = N/2),
+         craver_x = c(rep(rep(0:1, each = 630), N/4),
+                      rep(0:1, times = c(630*(N*0.45), 630*(N/20)))))
 
 
 sim_data <- sim_data %>%
   mutate(ID = rep(1:N, each = 600),
          treat = rep(c(rep('test', 600), 
                        rep('control', 600)), 
-                     N/2))
+                     each = N/2),
+         craver_x = c(rep(rep(0:1, each = 600), N/4),
+                      rep(0:1, times = c(600*(N*0.45), 600*(N/20)))))
 
 

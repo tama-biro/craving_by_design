@@ -114,7 +114,10 @@ simulate_choice_vk2 <- function(sim_data) {
     
     p_bet <- 1/(1 + exp(-beta*v))
     
-    p_bet <- K + (1 - K)*p_bet
+    # Apply DA(t) to cravers
+    if(sim_data$craver_x[i] == 1) {
+      p_bet <- K + (1 - K)*p_bet
+    }
     
     # Make choice
     sim_data$choice[i] <- rbinom(1, 1, p_bet)
@@ -536,7 +539,7 @@ for (i in 1:100) {
   if(i %% 10 == 0) {
     power_list %>% 
       toJSON(indent=0, method="C" ) %>%
-      write("simulation_v4_2.json")
+      write("simulation_v6_2.json")
   }
 }
 

@@ -120,11 +120,11 @@ data <- data %>%
 
 # 1. Fraction of cravers
 data %>%
-  group_by(id, treatment, craver_2) %>%
+  group_by(id, treatment, craver) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
   group_by(treatment) %>%
-  summarize(avg = mean(craver_2), n = n()) %>%
+  summarize(avg = mean(craver), n = n()) %>%
   ungroup %>%
   bind_rows(summarize(., treatment = "Total",
                       avg = sum(avg * n) / sum(n),
@@ -147,8 +147,52 @@ data %>%
                       n = sum(n)))
 
 
+# 3. post-game quiz and MCQ
 
-# 3. Plots plots and more plots
+# Pre-game strategy
+data %>%
+  group_by(id, craver_2) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  count(pre_game_strategy, craver_2)
+
+# Post game quiz test/control/overall
+pgq <- data %>%
+  filter(craver_2 == 1) %>%
+  filter(treatment == 'test') %>%
+  group_by(id) %>%
+  slice_head(n = 1) %>%
+  ungroup() %>%
+  select(
+#    post_game_quiz_q1
+#    post_game_quiz_q2
+#    post_game_quiz_q3
+    post_game_quiz_correct
+    ) %>%
+  group_by(
+#    post_game_quiz_q1
+#    post_game_quiz_q2
+#    post_game_quiz_q3
+    post_game_quiz_correct
+  ) %>%
+  summarize(n = n())
+
+# MCQ accuracy test/control/overall
+data %>%
+  filter(craver_2 == 1) %>%
+#  filter(treatment == 'test') %>%
+  group_by(id) %>%
+  summarize(MCQ1 = mean(MCQ_Q1),
+            MCQ2 = mean(MCQ_Q2),
+            MCQ3 = mean(MCQ_Q3),
+            MCQ4 = mean(MCQ_Q4),
+            MCQ5 = mean(MCQ_Q5),
+            MCQ6 = mean(MCQ_Q6)) %>%
+  ungroup() %>%
+  apply(MARGIN = 2, FUN = mean)
+
+
+# 4. Plots plots and more plots
 
 # Betting rate in blue/yellow for test/control
 data_plot <- data %>%

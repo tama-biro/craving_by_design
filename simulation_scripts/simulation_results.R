@@ -1,5 +1,5 @@
 
-json_file <- 'C:/Users/samue/Documents/simulation_v4_2.json'
+json_file <- 'C:/Users/samue/Documents/Elise Projects/simulation_v6_2.json'
 
 power_list1 <- json_file %>%
   readLines %>%
