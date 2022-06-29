@@ -274,6 +274,36 @@ ggplot(data_plot, aes(x = exp_bins,
 ggsave('betting_exposure_blue_all_bins_3_outlier_removed.png', width = 10, height = 7)
 
 
+# Betting rate by uncertainty
+data_plot <- data %>%
+  #  filter(craver_2 == 1) %>%
+  group_by(treatment, block_type, aaron_mood, id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  group_by(treatment, block_type, aaron_mood) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate)) %>%
+  ungroup
+
+
+ggplot(data_plot, aes(x = aaron_mood, y = betting_rate, fill = block_type)) +
+  geom_bar(stat='identity', position = position_dodge(.9)) +
+  geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
+                position = position_dodge(.9), width = .2) +
+  scale_x_discrete(name = 'Uncertainty',
+                   breaks = c('Low', 'High'),
+                   labels = c('Low', 'High')) +
+  scale_y_continuous(name = 'Betting rate') +
+  scale_fill_manual(name = 'Session color',
+                    breaks = c('C', 'S'),
+                    labels = c('Yellow', 'Blue'),
+                    values = c('#ffd700', '#0057b7')) +
+  theme_minimal() +
+  facet_wrap("treatment", nrow = 1)
+
+
+ggsave('betting_rate_by_uncertainty.png', width = 10, height = 6)
+
 # 4. Descriptives of betting rates 
 
 # By session color
@@ -286,7 +316,7 @@ psych::describeBy(data_desc$betting_rate, group = data_desc$block_type)
 
 # By treatment
 data_desc <- data %>%
-  filter(block_type == 'C') %>%
+  filter(block_type == 'S') %>%
   group_by(id, treatment) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup

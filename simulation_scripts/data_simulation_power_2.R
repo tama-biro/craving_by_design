@@ -103,7 +103,7 @@ simulate_choice_vk2 <- function(sim_data) {
     v <- (win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
     
     # Implement UNC parameter if high uncertainty
-    if(uncertainty == 0.5) {
+    if(uncertainty == 0.5 & sim_data$craver_x[i] == 1) {
       # Inverse of xi for yellow session
       if(win_chance == 0.2) {
         v <- (1/unc)*uncertainty*v
@@ -217,50 +217,6 @@ se = function(x) {
   return(se)
 }
 
-# Setup per repetition
-reward_test = rep(c(rep(1:2, each = 5, times = 2), 
-                    rep(1, 5), 
-                    rep(1:2, each = 5, times = 2), 
-                    rep(2, 5)), 2)
-reward_control = rep(rep(1:2, each = 5), 10)
-
-uncertainty_test = c(rep(c(rep(c(1, 0.5), each = 10), rep(0.5, 5)), 2), 
-                     rep(c(rep(c(1, 0.5), each = 10), rep(1, 5)), 2))
-uncertainty_control = c(rep(c(0.5, 1), each = 10), 
-                        rep(rep(c(1, 0.5), each = 10), 
-                            4))
-
-win_test = rep(c(rep(0.8, 20), rep(0.2, 5)), 4)
-win_control = c(rep(0.2, 20), rep(0.8, 80))
-
-# Set-up per participant
-reward_test_p = rep(reward_test, 6)
-reward_control_p = rep(reward_control, 6)
-
-uncertainty_test_p = rep(uncertainty_test, 6)
-uncertainty_control_p = rep(uncertainty_control, 6)
-
-win_test_p = rep(win_test, 6)
-win_control_p = rep(win_control, 6)
-
-# Make data frame
-N = 200
-sim_data = data.frame(ID = rep(1:N, each = 600),
-                      reward_value = rep(c(reward_test_p, 
-                                           reward_control_p), 
-                                         N/2),
-                      uncertainty = rep(c(uncertainty_test_p, 
-                                          uncertainty_control_p), 
-                                        N/2),
-                      win_chance = rep(c(win_test_p, 
-                                         win_control_p), 
-                                       N/2),
-                      treat = rep(c(rep('test', 
-                                        600), 
-                                    rep('control', 
-                                        600)), 
-                                  N/2),
-                      UNC = NA)
 
 #### Simulation ####
 
@@ -539,75 +495,10 @@ for (i in 1:100) {
   if(i %% 10 == 0) {
     power_list %>% 
       toJSON(indent=0, method="C" ) %>%
-      write("simulation_v6_2.json")
+      write("simulation_v7_1.json")
   }
 }
 
-
-power_list %>% 
-  toJSON(indent=0, method="C" ) %>%
-  write("test.json")
-
-
-json_file <- "C:/Users/samue/Documents/simulation_v3_1.json"
-json_file <- '/Users/sam/Library/CloudStorage/GoogleDrive-samuel.thelaus@gmail.com/My Drive/Elise Projects/Craving by Design/Documents/Power Simulation/Power JSON/simulation_v3_4.json'
-
-power_list1 <- json_file %>%
-  readLines %>%
-  paste0 %>%
-  fromJSON
-
-
-power_list_mean <- list(
-  't1' = list('t' = mean(unlist(power_list1[["t1"]][["t"]])),
-              'D' = mean(power_list[["t1"]][["D"]]),
-              'power' = sum(power_list1[["t1"]][["power"]] < .05)/
-                length(power_list1[["t1"]][["power"]])),
-  't2' = list(
-    'b_rew' = mean(power_list1[["t2"]][["b_rew"]]),
-    'b_unc' = mean(power_list1[["t2"]][["b_unc"]]),
-    'b_int' = mean(power_list1[["t2"]][["b_int"]]),
-    'power_r' = sum(abs(power_list1[["t2"]][["power_r"]]) > 1.96)/
-      length(power_list1[["t2"]][["power_r"]]),
-    'power_u' = sum(abs(power_list1[["t2"]][["power_u"]]) > 1.96)/
-      length(power_list1[["t2"]][["power_u"]]),
-    'power_i' = sum(abs(power_list1[["t2"]][["power_i"]]) > 1.96)/
-      length(power_list1[["t2"]][["power_i"]])
-  ),
-  't3' = list('beta_log' = mean(power_list1[["t3"]][["beta_log"]]),
-              'power_log' = sum(abs(power_list1[["t3"]][["power_log"]]) > 1.96)/
-                length(power_list1[["t3"]][["power_log"]]), 
-              'beta_lin' = mean(power_list1[["t3"]][["beta_lin"]]),
-              'power_lin' = sum(abs(power_list1[["t3"]][["power_lin"]]) > 1.96)/
-                length(power_list1[["t3"]][["power_lin"]])
-  ),
-  't4' = list(
-    'b_rew' = mean(power_list1[["t4"]][["b_rew"]]),
-    'b_unc' = mean(power_list1[["t4"]][["b_unc"]]),
-    'b_treat' = mean(power_list1[["t4"]][["b_treat"]]),
-    'power_r' = sum(abs(power_list1[["t4"]][["power_r"]]) > 1.96)/
-      length(power_list1[["t4"]][["power_r"]]),
-    'power_u' = sum(abs(power_list1[["t4"]][["power_u"]]) > 1.96)/
-      length(power_list1[["t4"]][["power_u"]]),
-    'power_t' = sum(abs(power_list1[["t4"]][["power_t"]]) > 1.96)/
-      length(power_list1[["t4"]][["power_t"]])
-  ),
-  't5' = list('t' = mean(unlist(power_list1[["t5"]][["t"]])),
-              'D' = mean(power_list[["t5"]][["D"]]),
-              'power' = sum(power_list1[["t5"]][["power"]] < .05)/
-                length(power_list1[["t5"]][["power"]])),
-  't6' = list('beta' = mean(power_list1[["t6"]][["beta"]]),
-              'power' = sum(abs(power_list1[["t6"]][["power"]]) > 1.96)/
-                length(power_list1[["t6"]][["power"]])),
-  't7' = list('t' = mean(unlist(power_list1[["t7"]][["t"]])),
-              'D' = mean(power_list[["t7"]][["D"]]),
-              'power' = sum(power_list1[["t7"]][["power"]] < .05)/
-                length(power_list1[["t7"]][["power"]])),
-  't8' = list('t' = mean(unlist(power_list1[["t8"]][["t"]])),
-              'D' = mean(power_list[["t8"]][["D"]]),
-              'power' = sum(power_list1[["t8"]][["power"]] < .05)/
-                length(power_list1[["t8"]][["power"]]))
-)
 
 
 
