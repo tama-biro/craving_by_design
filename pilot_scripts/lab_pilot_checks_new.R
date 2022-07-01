@@ -120,11 +120,11 @@ data <- data %>%
 
 # 1. Fraction of cravers
 data %>%
-  group_by(id, treatment, craver) %>%
+  group_by(id, treatment, craver_2) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
   group_by(treatment) %>%
-  summarize(avg = mean(craver), n = n()) %>%
+  summarize(avg = mean(craver_2), n = n()) %>%
   ungroup %>%
   bind_rows(summarize(., treatment = "Total",
                       avg = sum(avg * n) / sum(n),
@@ -186,7 +186,6 @@ data %>%
             MCQ2 = mean(MCQ_Q2),
             MCQ3 = mean(MCQ_Q3),
             MCQ4 = mean(MCQ_Q4),
-            MCQ5 = mean(MCQ_Q5),
             MCQ6 = mean(MCQ_Q6)) %>%
   ungroup() %>%
   apply(MARGIN = 2, FUN = mean)
@@ -239,10 +238,10 @@ ggplot(data_dists, aes(x = treatment, y = betting_rate)) +
                    name = 'Treatment') +
   scale_y_continuous(breaks = seq(0, 1, 0.025),
                      name = 'Betting rate') +
-  labs(title = 'In blue sessions') +
+  labs(title = 'In blue sessions - pooled') +
   theme_minimal()
 
-ggsave('betting_rates_box_blue_treat_test.png', width = 10, height = 7)
+ggsave('betting_rates_box_blue_treat_pooled.png', width = 10, height = 7)
 
 
 # Betting rate by exposure time for cravers and optimals
@@ -277,10 +276,10 @@ ggsave('betting_exposure_blue_all_bins_3_outlier_removed.png', width = 10, heigh
 # Betting rate by uncertainty
 data_plot <- data %>%
   #  filter(craver_2 == 1) %>%
-  group_by(treatment, block_type, aaron_mood, id) %>%
+  group_by(block_type, aaron_mood, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
-  group_by(treatment, block_type, aaron_mood) %>%
+  group_by(block_type, aaron_mood) %>%
   summarize(se = se(betting_rate),
             betting_rate = mean(betting_rate)) %>%
   ungroup
@@ -298,7 +297,7 @@ ggplot(data_plot, aes(x = aaron_mood, y = betting_rate, fill = block_type)) +
                     breaks = c('C', 'S'),
                     labels = c('Yellow', 'Blue'),
                     values = c('#ffd700', '#0057b7')) +
-  theme_minimal() +
+  theme_minimal()
   facet_wrap("treatment", nrow = 1)
 
 
