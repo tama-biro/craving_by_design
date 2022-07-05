@@ -61,6 +61,7 @@ data <- data %>%
 # Recode reward and uncertainty variable, make gender and major factors
 data <- data %>%
   filter(choice != 2) %>%
+  filter(sequence_number != 1) %>%
   mutate(aaron_mood = factor(aaron_mood, levels = 1:0,
                              labels = c('Low', 'High')),
          reward_value = factor(reward_value, levels = 1:2,
@@ -120,11 +121,11 @@ data <- data %>%
 
 # 1. Fraction of cravers
 data %>%
-  group_by(id, treatment, craver_2) %>%
+  group_by(id, treatment, craver) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
   group_by(treatment) %>%
-  summarize(avg = mean(craver_2), n = n()) %>%
+  summarize(avg = mean(craver), n = n()) %>%
   ungroup %>%
   bind_rows(summarize(., treatment = "Total",
                       avg = sum(avg * n) / sum(n),
@@ -194,8 +195,8 @@ data %>%
 # 4. Plots plots and more plots
 
 # Betting rate in blue/yellow for test/control
-data_plot <- data %>%
-#  filter(craver_2 == 1) %>%
+data_plot1 <- data %>%
+  filter(craver_2 == 1) %>%
   group_by(treatment, block_type, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
@@ -203,6 +204,21 @@ data_plot <- data %>%
   summarize(se = se(betting_rate),
             betting_rate = mean(betting_rate)) %>%
   ungroup
+
+data_plot2 <- data %>%
+  group_by(treatment, block_type, id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  group_by(treatment, block_type) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate)) %>%
+  ungroup
+
+data_plot <- data_plot1 %>%
+  rbind(data_plot2) %>%
+  mutate(participant_group = rep(c('Cravers', 'Pooled'), each = 4),
+         participant_group = factor(participant_group,
+                                    levels = c("Pooled", "Cravers")))
 
 
 ggplot(data_plot, aes(x = treatment, y = betting_rate, fill = block_type)) +
@@ -217,17 +233,32 @@ ggplot(data_plot, aes(x = treatment, y = betting_rate, fill = block_type)) +
                     breaks = c('C', 'S'),
                     labels = c('Yellow', 'Blue'),
                     values = c('#ffd700', '#0057b7')) +
-  theme_minimal()
+  theme_minimal() +
+  facet_wrap('participant_group', nrow = 1)
 
 
-ggsave('betting_rate_by_col_and_treat_pooled.png', width = 10, height = 8)
+ggsave('betting_rate_by_col_and_treat_facet.png', width = 10, height = 6)
 
 # Betting rates in yellow by treat
-data_dists <- data %>%
+data_dists1 <- data %>%
+  filter(block_type == 'S') %>%
+  group_by(id, treatment) %>%
+  summarize(betting_rate = mean(choice, na.rm=TRUE)) %>%
+  ungroup
+
+data_dists2 <- data %>%
   filter(block_type == 'S' & craver_2 == 1) %>%
   group_by(id, treatment) %>%
   summarize(betting_rate = mean(choice, na.rm=TRUE)) %>%
   ungroup
+
+data_dists <- data_dists1 %>%
+  rbind(data_dists2) %>%
+  mutate(participant_group = rep(c('Pooled', 'Cravers'),
+                                 times = c(nrow(data_dists1),
+                                           nrow(data_dists2))),
+         participant_group = factor(participant_group,
+                                    levels = c("Pooled", "Cravers")))
 
 
 # Plot
@@ -238,10 +269,11 @@ ggplot(data_dists, aes(x = treatment, y = betting_rate)) +
                    name = 'Treatment') +
   scale_y_continuous(breaks = seq(0, 1, 0.025),
                      name = 'Betting rate') +
-  labs(title = 'In blue sessions - pooled') +
-  theme_minimal()
+  labs(title = 'In blue sessions') +
+  theme_minimal() +
+  facet_wrap('participant_group', nrow = 1)
 
-ggsave('betting_rates_box_blue_treat_pooled.png', width = 10, height = 7)
+ggsave('betting_rates_box_blue_treat_facet.png', width = 10, height = 6)
 
 
 # Betting rate by exposure time for cravers and optimals
@@ -275,11 +307,11 @@ ggsave('betting_exposure_blue_all_bins_3_outlier_removed.png', width = 10, heigh
 
 # Betting rate by uncertainty
 data_plot <- data %>%
-  #  filter(craver_2 == 1) %>%
-  group_by(block_type, aaron_mood, id) %>%
+  filter(craver_2 == 1) %>%
+  group_by(block_type, treatment, aaron_mood, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
-  group_by(block_type, aaron_mood) %>%
+  group_by(block_type, treatment, aaron_mood) %>%
   summarize(se = se(betting_rate),
             betting_rate = mean(betting_rate)) %>%
   ungroup
@@ -297,11 +329,11 @@ ggplot(data_plot, aes(x = aaron_mood, y = betting_rate, fill = block_type)) +
                     breaks = c('C', 'S'),
                     labels = c('Yellow', 'Blue'),
                     values = c('#ffd700', '#0057b7')) +
-  theme_minimal()
+  theme_minimal() +
   facet_wrap("treatment", nrow = 1)
 
 
-ggsave('betting_rate_by_uncertainty.png', width = 10, height = 6)
+ggsave('betting_rate_by_uncertainty_by_treat.png', width = 10, height = 6)
 
 # 4. Descriptives of betting rates 
 
@@ -315,7 +347,7 @@ psych::describeBy(data_desc$betting_rate, group = data_desc$block_type)
 
 # By treatment
 data_desc <- data %>%
-  filter(block_type == 'S') %>%
+  filter(block_type == 'C') %>%
   group_by(id, treatment) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup
@@ -324,7 +356,7 @@ psych::describeBy(data_desc$betting_rate, group = data_desc$treatment)
 
 # By craver/optimal
 data_desc <- data %>%
-  filter(block_type == 'C') %>%
+  filter(block_type == 'S') %>%
   group_by(id, craver_2) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup

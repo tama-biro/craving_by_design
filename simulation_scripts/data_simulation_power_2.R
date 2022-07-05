@@ -4,6 +4,7 @@ library(truncnorm)
 library(lme4)
 library(effectsize)
 library(rjson)
+library(parallel)
 
 # Functions to set parameters
 set_alpha <- function() {
@@ -297,8 +298,9 @@ power_list <- list(
   't8_y' = list('t' = c(), 'D' = c(),  'power' = c())
 )
 
+time_1 <- Sys.time()
 
-for (i in 1:100) {
+for (i in 1:2) {
   
   # Simulate dataset
   sim_data <- simulate_choice_vk2(sim_data)
@@ -499,6 +501,209 @@ for (i in 1:100) {
   }
 }
 
+Sys.time() - time_1
 
 
+
+parallel_simulation <- function(x) {
+  # Simulate dataset
+  sim_data <- simulate_choice_vk2(sim_data)
+  
+  # Make exposure time and previous choice
+  sim_data <- add_exposure_time(sim_data)
+  
+  # Add noise control variables
+  sim_data$noise1 <- rnorm(nrow(sim_data), 0, 1)
+  sim_data$noise2 <- rnorm(nrow(sim_data), 2, 3)
+  
+  # Set up empty vector for output
+  out_vec <- c()
+  
+  # Test 1
+  d1 <- sim_data %>%
+    filter(win_chance == 0.2) %>%
+    group_by(ID, reward_value) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup() %>%
+    mutate(reward = factor(reward_value,
+                           levels = 1:2,
+                           labels = c('Low', 'High')))
+  
+  t1 <- t.test(betting_rate ~ reward_value, data = d1, paired = TRUE)
+  d <- cohens_d(betting_rate ~ reward_value, data = d1, paired = TRUE)
+  
+  # Save results
+  out_vec <- c(out_vec, c(t1$statistic, t1$p.value/2, d$Cohens_d))
+  
+  # Test 2
+  t2 <- glmer(choice ~ factor(reward_value) + factor(uncertainty) +
+                factor(win_chance) * factor(treat) + factor(previous_choice) +
+                scale(noise1) + scale(noise2) + (1 | ID),
+              data = sim_data, family = binomial(link = 'logit'))
+  
+  s <- summary(t2)
+  
+  # Save results
+  out_vec <- c(out_vec, c(s$coefficients[2, 1],
+                          s$coefficients[2, 3],
+                          s$coefficients[3, 1],
+                          s$coefficients[3, 3],
+                          s$coefficients[9, 1],
+                          s$coefficients[9, 3]))
+  
+  # Test 3
+  d2 <- sim_data %>%
+    filter(win_chance == 0.2) %>%
+    group_by(ID, treat) %>%
+    summarize(betting_rate = mean(choice),
+              noise1 = mean(noise1),
+              noise2 = mean(noise2),
+              craver = sum(choice)) %>%
+    ungroup() %>%
+    mutate(craver = if_else(craver > 1, 1, 0))
+  
+  t3_log <- glm(craver ~ treat + noise1 + noise2,
+                data = d2, family = binomial(link = 'logit'))
+  
+  s_log <- summary(t3_log)
+  
+  t3_lin <- lm(betting_rate ~ treat + noise1 + noise2, data = d2)
+  
+  s_lin <- summary(t3_lin)
+  
+  # Save results
+  out_vec <- c(out_vec, c(s_log$coefficients[2, 1],
+                          s_log$coefficients[2, 3],
+                          s_lin$coefficients[2, 1],
+                          s_lin$coefficients[2, 3]))
+  
+  # Test 4
+  t4 <- glmer(choice ~ factor(reward_value) + factor(uncertainty) +
+                factor(treat) + factor(previous_choice) +
+                scale(noise1) + scale(noise2) + (1 | ID),
+              data = sim_data[sim_data$win_chance == 0.2, ], 
+              family = binomial(link = 'logit'))
+  
+  s4 <- summary(t4)
+  
+  # Save results
+  out_vec <- c(out_vec, c(s4$coefficients[2, 1],
+                          s4$coefficients[2, 3],
+                          s4$coefficients[3, 1],
+                          s4$coefficients[3, 3],
+                          s4$coefficients[4, 1],
+                          s4$coefficients[4, 3]))
+  
+  # Test 5
+  d5 <- sim_data %>%
+    filter(win_chance == 0.8) %>%
+    group_by(ID, treat) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup()
+  
+  t5 <- t.test(betting_rate ~ treat, data = d5)
+  d <- cohens_d(betting_rate ~ treat, data = d5)
+  
+  # Save results
+  out_vec <- c(out_vec, c(t5$statistic,
+                          t5$p.value/2,
+                          d$Cohens_d))
+  
+  # Test 6
+  t6 <- glmer(choice ~ factor(reward_value) + factor(uncertainty) +
+                factor(treat) + factor(previous_choice) +
+                scale(noise1) + scale(noise2) + scale(exposure_time) +
+                (1 | ID),
+              data = sim_data[sim_data$win_chance == 0.8, ], 
+              family = binomial(link = 'logit'))
+  
+  s6 <- summary(t6)
+  
+  # Save results
+  out_vec <- c(out_vec, c(s6$coefficients[8, 1],
+                          s6$coefficients[8, 3]))
+  
+  # Test 7
+  d7 <- sim_data %>%
+    filter(win_chance == 0.2 & treat == 'test') %>%
+    group_by(ID) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup()
+  
+  t7 <- t.test(d7$betting_rate, mu = 0)
+  d <- cohens_d(d7$betting_rate, mu = 0)
+  
+  # Save results
+  out_vec <- c(out_vec, c(t7$statistic,
+                          t7$p.value/2,
+                          d$Cohens_d))
+  
+  # Test 8
+  d8 <- sim_data %>%
+    group_by(ID, uncertainty) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup() %>%
+    mutate(uncertainty = factor(uncertainty,
+                                levels = c(1, 0.5),
+                                labels = c('Low', 'High')))
+  
+  t8 <- t.test(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  d <- cohens_d(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  
+  # Save results
+  out_vec <- c(out_vec, c(t8$statistic,
+                          t8$p.value/2,
+                          d$Cohens_d))
+  
+  # Test 8.2
+  d8 <- sim_data %>%
+    filter(win_chance == 0.8) %>%
+    group_by(ID, uncertainty) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup() %>%
+    mutate(uncertainty = factor(uncertainty,
+                                levels = c(1, 0.5),
+                                labels = c('Low', 'High')))
+  
+  t8 <- t.test(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  d <- cohens_d(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  
+  # Save results
+  out_vec <- c(out_vec, c(t8$statistic,
+                          t8$p.value/2,
+                          d$Cohens_d))
+  
+  # Test 8.3
+  d8 <- sim_data %>%
+    filter(win_chance == 0.2) %>%
+    group_by(ID, uncertainty) %>%
+    summarize(betting_rate = mean(choice)) %>%
+    ungroup() %>%
+    mutate(uncertainty = factor(uncertainty,
+                                levels = c(1, 0.5),
+                                labels = c('Low', 'High')))
+  
+  t8 <- t.test(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  d <- cohens_d(betting_rate ~ uncertainty, data = d8, paired = TRUE)
+  
+  # Save results
+  out_vec <- c(out_vec, c(t8$statistic,
+                          t8$p.value/2,
+                          d$Cohens_d))
+  
+  return(out_vec)
+}
+
+time_1 <- Sys.time()
+
+test_parallel <- sapply(1:20, FUN = parallel_simulation) %>%
+  t %>%
+  as.data.frame
+
+Sys.time() - time_1
+
+
+
+# sapply time = 1.006115
+# loop time = 1.154574 hours
 
