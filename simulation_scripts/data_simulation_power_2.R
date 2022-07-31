@@ -50,17 +50,25 @@ set_beta <- function(varying=TRUE,
 }
 
 set_kappa1 <- function() {
-  #' Set kappa1 from uniform
+  #' Set kappa1 from truncated normal
   # kappa1 <- runif(1, 0.1, 1)
-  
-  kappa1 <- rtruncnorm(1, a = 0.05, b = 0.2, mean = 0.1, sd = 0.05)
+  if(rbinom(1, 1, 0.5)) {
+    kappa1 <- rtruncnorm(1, a = 0.05, b = 0.2, mean = 0.1, sd = 0.05)
+  } else {
+    kappa1 <- .05
+  }
   
   return(kappa1)
 }
 
 set_kappa2 <- function() {
-  #' Set kappa2 from uniform
-  kappa2 <- rtruncnorm(1, a = 0.6, b = 0.8, mean = 0.7, sd = 0.2)
+  #' Set kappa2 from truncated normal
+
+  if(rbinom(1, 1, 0.5)) {
+    kappa2 <- rtruncnorm(1, a = 0.6, b = 0.8, mean = 0.7, sd = 0.2)
+  } else {
+    kappa2 <- .5
+  }
   
   return(kappa2)
 }
@@ -104,7 +112,7 @@ simulate_choice_vk2 <- function(sim_data) {
     v <- (win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
     
     # Implement UNC parameter if high uncertainty
-    if(uncertainty == 0.5 & sim_data$craver_x[i] == 1) {
+    if(uncertainty == 0.5) {
       # Inverse of xi for yellow session
       if(win_chance == 0.2) {
         v <- (1/unc)*uncertainty*v
@@ -116,9 +124,10 @@ simulate_choice_vk2 <- function(sim_data) {
     p_bet <- 1/(1 + exp(-beta*v))
     
     # Apply DA(t) to cravers
-    if(sim_data$craver_x[i] == 1) {
-      p_bet <- K + (1 - K)*p_bet
-    }
+    # if(sim_data$craver_x[i] == 1) {
+    #   p_bet <- K + (1 - K)*p_bet
+    # }
+    p_bet <- K + (1 - K)*p_bet
     
     # Make choice
     sim_data$choice[i] <- rbinom(1, 1, p_bet)
@@ -696,13 +705,13 @@ parallel_simulation <- function(x) {
 
 time_1 <- Sys.time()
 
-test_parallel <- sapply(1:20, FUN = parallel_simulation) %>%
+test_parallel <- sapply(1:100, FUN = parallel_simulation) %>%
   t %>%
   as.data.frame
 
 Sys.time() - time_1
 
-
+write.csv(test_parallel, 'test_parallel220725_v1.csv', row.names = FALSE)
 
 # sapply time = 1.006115
 # loop time = 1.154574 hours

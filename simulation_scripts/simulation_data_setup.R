@@ -26,11 +26,11 @@ make_100_trials_test <- function(block_order) {
   }
   
   # Add blue in the beginning
-  start_blue <- data.frame(reward_value = rep(2, 5),
-                           uncertainty = rep(1, 5),
-                           win_chance = rep(0.8, 5))
-
-  trials <- rbind(start_blue, trials)
+  # start_blue <- data.frame(reward_value = rep(2, 5),
+  #                          uncertainty = rep(1, 5),
+  #                          win_chance = rep(0.8, 5))
+  # 
+  # trials <- rbind(start_blue, trials)
   
   return(trials)
   
@@ -60,11 +60,11 @@ make_100_trials_ctrl <- function(block_order) {
   trials$win_chance <- rep(c(0.2, rep(0.8, 4)), each = 20)
   
   # Add blue in the beginning
-  start_blue <- data.frame(reward_value = rep(2, 5),
-                           uncertainty = rep(1, 5),
-                           win_chance = rep(0.8, 5))
-
-  trials <- rbind(start_blue, trials)
+  # start_blue <- data.frame(reward_value = rep(2, 5),
+  #                          uncertainty = rep(1, 5),
+  #                          win_chance = rep(0.8, 5))
+  # 
+  # trials <- rbind(start_blue, trials)
 
   return(trials)
   

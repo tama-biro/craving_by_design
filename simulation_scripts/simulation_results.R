@@ -73,6 +73,9 @@ power_list_mean <- list(
 )
 
 
+
+test_parallel <- read.csv('C:/Users/samue/Google Drive/Elise Projects/Random NHB stuff/test_parallel220725_v1.csv')
+
 # From sapply
 power_list_mean <- list(
   't1' = list('t' = mean(test_parallel[,1]),

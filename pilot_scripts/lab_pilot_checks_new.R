@@ -218,7 +218,8 @@ data_plot <- data_plot1 %>%
   rbind(data_plot2) %>%
   mutate(participant_group = rep(c('Cravers', 'Pooled'), each = 4),
          participant_group = factor(participant_group,
-                                    levels = c("Pooled", "Cravers")))
+                                    levels = c("Pooled", "Cravers"),
+                                    labels = c("(A) Pooled", "(B) Cravers")))
 
 
 ggplot(data_plot, aes(x = treatment, y = betting_rate, fill = block_type)) +
@@ -234,7 +235,10 @@ ggplot(data_plot, aes(x = treatment, y = betting_rate, fill = block_type)) +
                     labels = c('Yellow', 'Blue'),
                     values = c('#ffd700', '#0057b7')) +
   theme_minimal() +
-  facet_wrap('participant_group', nrow = 1)
+  facet_wrap('participant_group', nrow = 1) +
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14),
+        strip.text = element_text(size = 14))
 
 
 ggsave('betting_rate_by_col_and_treat_facet.png', width = 10, height = 6)
@@ -258,7 +262,8 @@ data_dists <- data_dists1 %>%
                                  times = c(nrow(data_dists1),
                                            nrow(data_dists2))),
          participant_group = factor(participant_group,
-                                    levels = c("Pooled", "Cravers")))
+                                    levels = c("Pooled", "Cravers"),
+                                    labels = c("(A) Pooled", "(B) Cravers")))
 
 
 # Plot
@@ -269,23 +274,24 @@ ggplot(data_dists, aes(x = treatment, y = betting_rate)) +
                    name = 'Treatment') +
   scale_y_continuous(breaks = seq(0, 1, 0.025),
                      name = 'Betting rate') +
-  labs(title = 'In blue sessions') +
   theme_minimal() +
-  facet_wrap('participant_group', nrow = 1)
+  facet_wrap('participant_group', nrow = 1) +
+  theme(axis.text = element_text(size = 12),
+        axis.title = element_text(size = 14),
+        strip.text = element_text(size = 14))
 
 ggsave('betting_rates_box_blue_treat_facet.png', width = 10, height = 6)
 
 
 # Betting rate by exposure time for cravers and optimals
-
 data_plot <- data %>%
-  filter(block_type == 'S') %>%
+#  filter(block_type == 'C') %>%
   mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
          exp_num = cut_interval(exposure_time, 3)) %>%
   group_by(exp_bins, craver_2, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
-  filter(betting_rate > .6) %>%
+#  filter(betting_rate > .6) %>%
   group_by(exp_bins) %>%
   summarize(se = se(betting_rate),
             betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
@@ -297,12 +303,13 @@ ggplot(data_plot, aes(x = exp_bins,
   geom_errorbar(aes(ymin = betting_rate - se,
                     ymax = betting_rate + se),
                 width = 0.2) +
-  labs(x = 'Exposure time', y = 'Betting rate',
-       title = "3 bins - outliers removed") +
+  labs(x = 'Previous reward exposure', y = 'Betting rate') +
   scale_x_continuous(breaks = 1:3) +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12))
 
-ggsave('betting_exposure_blue_all_bins_3_outlier_removed.png', width = 10, height = 7)
+ggsave('betting_exposure_pooled_all_bins_3_outlier_removed.png', width = 10, height = 7)
 
 
 # Betting rate by uncertainty
@@ -339,6 +346,7 @@ ggsave('betting_rate_by_uncertainty_by_treat.png', width = 10, height = 6)
 
 # By session color
 data_desc <- data %>%
+  filter(craver_2 == 0) %>%
   group_by(id, block_type) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup
@@ -347,7 +355,7 @@ psych::describeBy(data_desc$betting_rate, group = data_desc$block_type)
 
 # By treatment
 data_desc <- data %>%
-  filter(block_type == 'C') %>%
+  filter(block_type == 'C' & craver_2 == 0) %>%
   group_by(id, treatment) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup
