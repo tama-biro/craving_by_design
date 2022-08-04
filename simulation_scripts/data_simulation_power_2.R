@@ -90,13 +90,8 @@ simulate_choice_vk2 <- function(sim_data) {
   alpha_1 <- alpha_2 <- set_alpha()
   lmbda <- set_lmbda()
   beta <- set_beta()
-  if(rbinom(1, 1, 0.5)) {
-    kappa_1 <- set_kappa1()
-    kappa_2 <- set_kappa2()
-  } else {
-    kappa_1 <- .05
-    kappa_2 <- .5
-  }
+  kappa_1 <- set_kappa1()
+  kappa_2 <- set_kappa2()
   theta <- set_theta()
   unc <- set_unc()
   
@@ -109,7 +104,7 @@ simulate_choice_vk2 <- function(sim_data) {
     v <- (win_chance*(reward_value-0.7)^alpha_1-lmbda*loss_chance*0.7^alpha_2)
     
     # Implement UNC parameter if high uncertainty
-    if(uncertainty == 0.5) {
+    if(uncertainty == 0.5 & sim_data$craver_x[i]) {
       # Inverse of xi for yellow session
       if(win_chance == 0.2) {
         v <- (1/unc)*uncertainty*v
@@ -121,10 +116,9 @@ simulate_choice_vk2 <- function(sim_data) {
     p_bet <- 1/(1 + exp(-beta*v))
     
     # Apply DA(t) to cravers
-    # if(sim_data$craver_x[i] == 1) {
-    #   p_bet <- K + (1 - K)*p_bet
-    # }
-    p_bet <- K + (1 - K)*p_bet
+    if(sim_data$craver_x[i]) {
+      p_bet <- K + (1 - K)*p_bet
+    }
     
     # Make choice
     sim_data$choice[i] <- rbinom(1, 1, p_bet)
