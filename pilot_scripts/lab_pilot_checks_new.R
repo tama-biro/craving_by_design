@@ -61,7 +61,7 @@ data <- data %>%
 # Recode reward and uncertainty variable, make gender and major factors
 data <- data %>%
   filter(choice != 2) %>%
-  filter(sequence_number != 1) %>%
+#  filter(sequence_number != 1) %>%
   mutate(aaron_mood = factor(aaron_mood, levels = 1:0,
                              labels = c('Low', 'High')),
          reward_value = factor(reward_value, levels = 1:2,
@@ -238,7 +238,9 @@ ggplot(data_plot, aes(x = treatment, y = betting_rate, fill = block_type)) +
   facet_wrap('participant_group', nrow = 1) +
   theme(axis.text = element_text(size = 12),
         axis.title = element_text(size = 14),
-        strip.text = element_text(size = 14))
+        strip.text = element_text(size = 14),
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 12))
 
 
 ggsave('betting_rate_by_col_and_treat_facet.png', width = 10, height = 6)
@@ -315,10 +317,10 @@ ggsave('betting_exposure_pooled_all_bins_3_outlier_removed.png', width = 10, hei
 # Betting rate by uncertainty
 data_plot <- data %>%
   filter(craver_2 == 1) %>%
-  group_by(block_type, treatment, aaron_mood, id) %>%
+  group_by(block_type, aaron_mood, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
-  group_by(block_type, treatment, aaron_mood) %>%
+  group_by(block_type, aaron_mood) %>%
   summarize(se = se(betting_rate),
             betting_rate = mean(betting_rate)) %>%
   ungroup
@@ -337,7 +339,11 @@ ggplot(data_plot, aes(x = aaron_mood, y = betting_rate, fill = block_type)) +
                     labels = c('Yellow', 'Blue'),
                     values = c('#ffd700', '#0057b7')) +
   theme_minimal() +
-  facet_wrap("treatment", nrow = 1)
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 12))
+#  facet_wrap("treatment", nrow = 1)
 
 
 ggsave('betting_rate_by_uncertainty_by_treat.png', width = 10, height = 6)

@@ -31,7 +31,7 @@ set_lmbda <- function() {
   # lmbda <- rtruncnorm(1, a = 0, b = 3, mean = 1.955, sd = 0.5)
   
   # loss neutral
-  lmbda <- rtruncnorm(1, a = 0, b = 2.5, mean = 1, sd = 0.5)
+  lmbda <- rtruncnorm(1, a = 0, b = 6, mean = 1.97, sd = 1)
   
   return(lmbda)
 }
@@ -52,11 +52,7 @@ set_beta <- function(varying=TRUE,
 set_kappa1 <- function() {
   #' Set kappa1 from truncated normal
   # kappa1 <- runif(1, 0.1, 1)
-  if(rbinom(1, 1, 0.5)) {
-    kappa1 <- rtruncnorm(1, a = 0.05, b = 0.2, mean = 0.1, sd = 0.05)
-  } else {
-    kappa1 <- .05
-  }
+  kappa1 <- rtruncnorm(1, a = 0.05, b = 0.2, mean = 0.1, sd = 0.05)
   
   return(kappa1)
 }
@@ -64,11 +60,7 @@ set_kappa1 <- function() {
 set_kappa2 <- function() {
   #' Set kappa2 from truncated normal
 
-  if(rbinom(1, 1, 0.5)) {
-    kappa2 <- rtruncnorm(1, a = 0.6, b = 0.8, mean = 0.7, sd = 0.2)
-  } else {
-    kappa2 <- .5
-  }
+  kappa2 <- rtruncnorm(1, a = 0.6, b = 0.8, mean = 0.7, sd = 0.2)
   
   return(kappa2)
 }
@@ -98,8 +90,13 @@ simulate_choice_vk2 <- function(sim_data) {
   alpha_1 <- alpha_2 <- set_alpha()
   lmbda <- set_lmbda()
   beta <- set_beta()
-  kappa_1 <- set_kappa1()
-  kappa_2 <- set_kappa2()
+  if(rbinom(1, 1, 0.5)) {
+    kappa_1 <- set_kappa1()
+    kappa_2 <- set_kappa2()
+  } else {
+    kappa_1 <- .05
+    kappa_2 <- .5
+  }
   theta <- set_theta()
   unc <- set_unc()
   
@@ -662,7 +659,7 @@ test_parallel_2 <- sapply(1:100, FUN = parallel_simulation2) %>%
   t %>%
   as.data.frame
 
-write.csv(test_parallel, 'test_parallel220725_v1.csv', row.names = FALSE)
+write.csv(test_parallel, 'test_parallel220802.csv', row.names = FALSE)
 
 # sapply time = 1.006115
 # loop time = 1.154574 hours
