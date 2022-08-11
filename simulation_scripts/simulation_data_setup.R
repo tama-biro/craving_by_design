@@ -98,18 +98,19 @@ for(i in 1:N) {
   
 }
 
-sim_data <- sim_data %>%
-  mutate(ID = rep(1:N, each = 630),
-         treat = rep(c(rep('test', 630), 
-                       rep('control', 630)), 
-                     each = N/2),
-         craver_x = rep(rep(0:1, each = 630), 100))
-
-
+# Base case
 sim_data <- sim_data %>%
   mutate(ID = rep(1:N, each = 600),
          treat = rep(c(rep('test', 600), 
                        rep('control', 600)), 
                      each = N/2),
          craver_x = rep(rep(0:1, each = 600), 100))
+
+# Extra blue
+sim_data <- sim_data %>%
+  mutate(ID = rep(1:N, each = 630),
+         treat = rep(c(rep('test', 630), 
+                       rep('control', 630)), 
+                     each = N/2),
+         craver_x = rep(rep(0:1, each = 630), 100))
 
