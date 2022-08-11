@@ -31,8 +31,15 @@ set_lmbda <- function() {
   # lmbda <- rtruncnorm(1, a = 0, b = 3, mean = 1.955, sd = 0.5)
   
   # loss neutral
-  lmbda <- rtruncnorm(1, a = 0, b = 5, mean = 1.97, sd = 0.5)
+  # lmbda <- rtruncnorm(1, a = 0, b = 5, mean = 1.97, sd = 0.5)
   
+  lmbda <- rsn(n = 1, xi = .8, omega = 1, alpha = 10, tau = 0)
+  
+  if(lmbda < 0) {
+    return(0)
+  } else if(lmbda > 6) {
+    return(6)
+  }
   return(lmbda)
 }
 
@@ -89,7 +96,7 @@ simulate_choice_vk2 <- function(sim_data) {
   
   alpha_1 <- alpha_2 <- set_alpha()
   lmbda <- set_lmbda()
-  beta <- set_beta(lower = 30)
+  beta <- set_beta(lower = 10)
   kappa_1 <- set_kappa1()
   kappa_2 <- set_kappa2()
   theta <- set_theta()
@@ -164,7 +171,7 @@ simulate_choice_vk2 <- function(sim_data) {
     if(i %% 600 == 0) {
       alpha_1 <- alpha_2 <- set_alpha()
       lmbda <- set_lmbda()
-      beta <- set_beta(lower = 30)
+      beta <- set_beta(lower = 10)
       kappa_1 <- set_kappa1()
       kappa_2 <- set_kappa2()
       theta <- set_theta()
