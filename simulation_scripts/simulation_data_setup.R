@@ -104,7 +104,7 @@ sim_data <- sim_data %>%
          treat = rep(c(rep('test', 600), 
                        rep('control', 600)), 
                      each = N/2),
-         craver_x = rep(rep(0:1, each = 600), 100))
+         craver_x = rep(rep(0:1, each = 600), N/2))
 
 # Extra blue
 sim_data <- sim_data %>%

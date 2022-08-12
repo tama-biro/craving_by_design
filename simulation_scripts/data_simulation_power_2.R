@@ -4,6 +4,7 @@ library(truncnorm)
 library(lme4)
 library(effectsize)
 library(rjson)
+library(parallel)
 library(BayesianFirstAid)
 
 # Functions to set parameters
@@ -96,7 +97,7 @@ simulate_choice_vk2 <- function(sim_data) {
   
   alpha_1 <- alpha_2 <- set_alpha()
   lmbda <- set_lmbda()
-  beta <- set_beta(lower = 10)
+  beta <- set_beta(lower = 30)
   kappa_1 <- set_kappa1()
   kappa_2 <- set_kappa2()
   theta <- set_theta()
@@ -171,7 +172,7 @@ simulate_choice_vk2 <- function(sim_data) {
     if(i %% 600 == 0) {
       alpha_1 <- alpha_2 <- set_alpha()
       lmbda <- set_lmbda()
-      beta <- set_beta(lower = 10)
+      beta <- set_beta(lower = 30)
       kappa_1 <- set_kappa1()
       kappa_2 <- set_kappa2()
       theta <- set_theta()
@@ -336,10 +337,10 @@ parallel_simulation <- function(x) {
     group_by(ID) %>%
     summarize(betting_rate = mean(choice)) %>%
     ungroup
-  
+
   t6 <- bayes.t.test(d6$betting_rate, mu = 0)
   bf <- t6$stats[1,7]/t6$stats[1,8]
-  
+
   # Save results
   out_vec <- c(out_vec, bf)
   
@@ -364,6 +365,15 @@ parallel_simulation <- function(x) {
   return(out_vec)
 }
 
+
+for(k in 1:5) {
+  test_parallel <- mclapply(1:10, parallel_simulation)
+  
+  test_parallel <- do.call(rbind, test_parallel) %>%
+    as.data.frame
+  
+  write.csv(test_parallel, paste0('test_parallel220811_', k ,'.csv'), row.names = FALSE)
+}
 time_1 <- Sys.time()
 
 test_parallel <- sapply(1:50, FUN = parallel_simulation) %>%
