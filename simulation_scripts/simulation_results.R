@@ -74,7 +74,29 @@ power_list_mean <- list(
 
 
 
-test_parallel <- read.csv('C:/Users/samue/Google Drive/Elise Projects/Random NHB stuff/test_parallel220725_v1.csv')
+test_parallel <- read.csv('/Users/sam/test_parallel220812base_1.csv')
+
+for(i in 2:5) {
+  test_parallel2 <- read.csv(paste0('/Users/sam/test_parallel220812base_', i, '.csv'))
+  
+  test_parallel <- rbind(test_parallel, test_parallel2)
+}
+
+
+c(out_vec, c(s_log$coefficients[2, 1],
+             s_log$coefficients[2, 3],
+             s_lin$coefficients[2, 1],
+             s_lin$coefficients[2, 3]))
+c(out_vec, c(s5$coefficients[2, 1],
+             s5$coefficients[2, 3],
+             s5$coefficients[3, 1],
+             s5$coefficients[3, 3],
+             s5$coefficients[4, 1],
+             s5$coefficients[4, 3]))
+c(out_vec, bf)
+c(out_vec, c(t7$statistic,
+             t7$p.value/2,
+             d$Cohens_d))
 
 # From sapply
 power_list_mean <- list(
@@ -89,10 +111,12 @@ power_list_mean <- list(
     'b_int' = mean(test_parallel[,8]),
     'power_i' = sum(abs(test_parallel[,9]) > 1.96)/nrow(test_parallel)
   ),
-  't3' = list('beta_log' = mean(test_parallel[,10]),
-              'power_log' = sum(abs(test_parallel[,11]) > 1.96)/nrow(test_parallel), 
-              'beta_lin' = mean(test_parallel[,12]),
-              'power_lin' = sum(abs(test_parallel[,13]) > 1.96)/nrow(test_parallel)
+  't3' = list('b_exp' = mean(test_parallel[,10]),
+              'power_exp' = mean(test_parallel[,11])),
+  't4' = list('beta_log' = mean(test_parallel[,12]),
+              'power_log' = sum(abs(test_parallel[,13]) > 1.96)/nrow(test_parallel), 
+              'beta_lin' = mean(test_parallel[,14]),
+              'power_lin' = sum(abs(test_parallel[,15]) > 1.96)/nrow(test_parallel)
   ),
   't4' = list(
     'b_rew' = mean(test_parallel[,14]),
@@ -109,16 +133,7 @@ power_list_mean <- list(
               'power' = sum(abs(test_parallel[,24]) > 1.96)/nrow(test_parallel)),
   't7' = list('t' = mean(test_parallel[,25]),
               'power' = sum(test_parallel[,26] < .05)/nrow(test_parallel),
-              'D' = mean(test_parallel[,27])),
-  't8' = list('t' = mean(test_parallel[,28]),
-              'power' = sum(test_parallel[,29] < .05)/nrow(test_parallel),
-              'D' = mean(test_parallel[,30])),
-  't8_b' = list('t' = mean(test_parallel[,31]),
-                'power' = sum(test_parallel[,32] < .05)/nrow(test_parallel),
-                'D' = mean(test_parallel[,33])),
-  't8_y' = list('t' = mean(test_parallel[,34]),
-                'power' = sum(test_parallel[,35] < .05)/nrow(test_parallel),
-                'D' = mean(test_parallel[,36]))
+              'D' = mean(test_parallel[,27]))
 )
 
 
