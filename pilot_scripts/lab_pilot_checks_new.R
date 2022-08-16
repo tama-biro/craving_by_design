@@ -286,32 +286,61 @@ ggsave('betting_rates_box_blue_treat_facet.png', width = 10, height = 6)
 
 
 # Betting rate by exposure time for cravers and optimals
-data_plot <- data %>%
-#  filter(block_type == 'C') %>%
+data_plot_y <- data %>%
+  filter(block_type == 'C') %>%
   mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
          exp_num = cut_interval(exposure_time, 3)) %>%
   group_by(exp_bins, craver_2, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
-#  filter(betting_rate > .6) %>%
   group_by(exp_bins) %>%
   summarize(se = se(betting_rate),
             betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
   ungroup
 
+data_plot_b <- data %>%
+  filter(block_type == 'S') %>%
+  mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
+         exp_num = cut_interval(exposure_time, 3)) %>%
+  group_by(exp_bins, craver_2, id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  filter(betting_rate > .6) %>%
+  group_by(exp_bins) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
+  ungroup
+
+data_plot <- data_plot_b %>%
+  rbind(data_plot_y) %>%
+  mutate(session_color = rep(c('Blue', 'Yellow'),
+                                 times = c(nrow(data_plot_b),
+                                           nrow(data_plot_y))),
+         session_color = factor(session_color,
+                                levels = c('Blue', 'Yellow'),
+                                labels = c("(A) Blue", "(B) Yellow")))
+
+
 ggplot(data_plot, aes(x = exp_bins,
-                      y = betting_rate)) +
+                      y = betting_rate,
+                      col = session_color)) +
   geom_line() +
   geom_errorbar(aes(ymin = betting_rate - se,
                     ymax = betting_rate + se),
                 width = 0.2) +
   labs(x = 'Previous reward exposure', y = 'Betting rate') +
   scale_x_continuous(breaks = 1:3) +
+  scale_color_manual(name = 'Session color',
+                     breaks = c('(A) Blue', '(B) Yellow'),
+                     values = c('#0057b7', '#ffd700')) +
   theme_minimal() +
   theme(axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12))
+        axis.text = element_text(size = 12),
+        strip.text = element_text(size = 14),
+        legend.position = 'none') +
+  facet_wrap('session_color', scales = 'free_y')
 
-ggsave('betting_exposure_pooled_all_bins_3_outlier_removed.png', width = 10, height = 7)
+ggsave('betting_exposure_pooled_all_bins_3_outlier_removed.png', width = 10, height = 5)
 
 
 # Betting rate by uncertainty
@@ -327,7 +356,7 @@ data_plot <- data %>%
 
 
 ggplot(data_plot, aes(x = aaron_mood, y = betting_rate, fill = block_type)) +
-  geom_bar(stat='identity', position = position_dodge(.9)) +
+  geom_bar(stat='identity', position = position_dodge(.9), width = 0.5) +
   geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
                 position = position_dodge(.9), width = .2) +
   scale_x_discrete(name = 'Uncertainty',
@@ -346,7 +375,7 @@ ggplot(data_plot, aes(x = aaron_mood, y = betting_rate, fill = block_type)) +
 #  facet_wrap("treatment", nrow = 1)
 
 
-ggsave('betting_rate_by_uncertainty_by_treat.png', width = 10, height = 6)
+ggsave('betting_rate_by_uncertainty.png', width = 10, height = 6)
 
 # 4. Descriptives of betting rates 
 
