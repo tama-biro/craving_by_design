@@ -344,7 +344,19 @@ ggsave('betting_exposure_pooled_all_bins_3_outlier_removed.png', width = 10, hei
 
 
 # Betting rate by uncertainty
-data_plot <- data %>%
+data_plot_r <- data %>%
+  filter(craver_2 == 1) %>%
+  group_by(block_type, reward_value, id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  group_by(block_type, reward_value) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate)) %>%
+  ungroup %>%
+  mutate(x_ax = reward_value) %>%
+  select(-reward_value)
+
+data_plot_u <- data %>%
   filter(craver_2 == 1) %>%
   group_by(block_type, aaron_mood, id) %>%
   summarize(betting_rate = mean(choice)) %>%
@@ -352,14 +364,25 @@ data_plot <- data %>%
   group_by(block_type, aaron_mood) %>%
   summarize(se = se(betting_rate),
             betting_rate = mean(betting_rate)) %>%
-  ungroup
+  ungroup %>%
+  mutate(x_ax = aaron_mood) %>%
+  select(-aaron_mood)
+
+data_plot <- data_plot_r %>%
+  rbind(data_plot_u) %>%
+  mutate(type = rep(c('Reward', 'Uncertainty'),
+                    times = c(nrow(data_plot_r),
+                              nrow(data_plot_u))),
+         type = factor(type,
+                       levels = c('Reward', 'Uncertainty'),
+                       labels = c("(A) Reward", "(B) Uncertainty")))
 
 
-ggplot(data_plot, aes(x = aaron_mood, y = betting_rate, fill = block_type)) +
-  geom_bar(stat='identity', position = position_dodge(.9), width = 0.5) +
+ggplot(data_plot, aes(x = x_ax, y = betting_rate, fill = block_type)) +
+  geom_bar(stat='identity', position = position_dodge(.9)) +
   geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
                 position = position_dodge(.9), width = .2) +
-  scale_x_discrete(name = 'Uncertainty',
+  scale_x_discrete(name = '',
                    breaks = c('Low', 'High'),
                    labels = c('Low', 'High')) +
   scale_y_continuous(name = 'Betting rate') +
@@ -371,11 +394,12 @@ ggplot(data_plot, aes(x = aaron_mood, y = betting_rate, fill = block_type)) +
   theme(axis.title = element_text(size = 14),
         axis.text = element_text(size = 12),
         legend.title = element_text(size = 14),
-        legend.text = element_text(size = 12))
-#  facet_wrap("treatment", nrow = 1)
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 14)) +
+  facet_wrap("type", nrow = 1)
 
 
-ggsave('betting_rate_by_uncertainty.png', width = 10, height = 6)
+ggsave('betting_rate_by_unc_reward.png', width = 10, height = 6)
 
 # 4. Descriptives of betting rates 
 
