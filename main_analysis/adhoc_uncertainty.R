@@ -1,10 +1,14 @@
 library(tidyverse)
 
+
 # SE function
 se <- function (x) {
   se = sd(x, na.rm = TRUE)/sqrt(length(x))
   return(se)
 }
+
+filepath <- '../data/data_reduced.csv'
+data <- read.csv(filepath)
 
 # 1. Betting rate in yellow is higher in control
 d1_plot <- data %>%

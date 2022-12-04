@@ -58,8 +58,9 @@ data_2 <- data %>%
                         labels = c("Yellow", "Blue")))
 
 log_mod_2 <- bglmer(choice ~ reward_value + uncertainty + treatment * color +
-                      age + gender + major + (1 | id),
-                    data = data_2, family = binomial(link = "logit"))
+                      scale(age) + gender + major + (1 | id),
+                    fixef.prior = t, data = data_2,
+                    family = binomial(link = "logit"))
 
 summary(log_mod_2)
 
@@ -68,8 +69,9 @@ summary(log_mod_2)
 # Logistic mixed effects regression, trial level
 # Predicting betting, adding reward exposure
 log_mod_3 <- bglmer(choice ~ reward_value + uncertainty + treatment * color +
-                      age + gender + major + exposure_time (1 | id),
-                    data = data_2, family = binomial(link = "logit"))
+                      scale(age) + gender + major + scale(exposure_time) +
+                      (1 | id), `data = data_2, fixef.prior = t,
+                    family = binomial(link = "logit"))
 
 summary(log_mod_3)
 
@@ -94,7 +96,8 @@ data_5 <- data %>%
                             labels = c("Control", "Test")))
 
 log_mod_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      previous_choice + (1 | id), data = data_5,
+                      previous_choice + scale(age) + gender + major + (1 | id),
+                    data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
 summary(log_mod_5)
