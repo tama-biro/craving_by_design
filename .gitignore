@@ -1,4 +1,5 @@
-
+*.RData
+*.RHistory
 .DS_Store
 Plots/.DS_Store
 data/**
