@@ -70,7 +70,7 @@ summary(log_mod_2)
 # Predicting betting, adding reward exposure
 log_mod_3 <- bglmer(choice ~ reward_value + uncertainty + treatment * color +
                       scale(age) + gender + major + scale(exposure_time) +
-                      (1 | id), `data = data_2, fixef.prior = t,
+                      (1 | id), data = data_2, fixef.prior = t,
                     family = binomial(link = "logit"))
 
 summary(log_mod_3)
