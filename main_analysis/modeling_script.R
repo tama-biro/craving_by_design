@@ -38,9 +38,15 @@ shapiro.test(data_1$betting_rate_bc)
 
 
 # Run test
-t.test(data_1$betting_rate_bc ~ reward_value, data = data_1)
+t.test(data_1$betting_rate_bc ~ reward_value, data = data_1,
+       alternative = 'less', paired = TRUE)
 
-t.test(data_1$betting_rate ~ reward_value, data = data_1)
+t.test(data_1$betting_rate ~ reward_value, data = data_1,
+       alternative = 'less', paired = TRUE)
+
+# Non-parametric
+wilcox.test(data_1$betting_rate ~ reward_value, data = data_1,
+            alternative = 'less', paired = TRUE)
 
 
 #### Test 2 ####
@@ -164,9 +170,11 @@ shapiro.test(data_7$betting_rate_bc)
 
 
 # Run test
-t.test(data_7$betting_rate_bc ~ uncertainty, data = data_7)
+t.test(data_7$betting_rate_bc ~ uncertainty, data = data_7,
+       alternative = 'less', paired = TRUE)
 
-t.test(data_7$betting_rate ~ uncertainty, data = data_7)
+t.test(data_7$betting_rate ~ uncertainty, data = data_7,
+       alternative = 'less', paired = TRUE)
 
 
 

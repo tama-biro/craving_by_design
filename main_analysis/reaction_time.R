@@ -30,7 +30,7 @@ log_mod_rt <- bglmer(choice ~ reward_value + uncertainty + treatment * color +
 summary(log_mod_rt)
 
 
-steam# Include in log mod 5
+# Include in log mod 5
 data_rt_5 <- data %>%
   filter(block_type == "C" & craver_2 == 1) %>%
   mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
