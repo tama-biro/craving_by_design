@@ -5,6 +5,8 @@ library(blme)
 library(BayesianFirstAid)
 
 
+set.seed(41)
+
 filepath <- '../data/data_reduced.csv'
 data <- read.csv(filepath)
 
@@ -64,7 +66,7 @@ data_2 <- data %>%
                         labels = c("Yellow", "Blue")))
 
 log_mod_2 <- bglmer(choice ~ reward_value + uncertainty + treatment * color +
-                      scale(age) + gender + major + (1 | id),
+                      scale(age) + factor(gender) + factor(major) + (1 | id),
                     fixef.prior = t, data = data_2,
                     family = binomial(link = "logit"))
 
@@ -75,11 +77,14 @@ summary(log_mod_2)
 # Logistic mixed effects regression, trial level
 # Predicting betting, adding reward exposure
 log_mod_3 <- bglmer(choice ~ reward_value + uncertainty + treatment * color +
-                      scale(age) + gender + major + scale(exposure_time) +
-                      (1 | id), data = data_2, fixef.prior = t,
+                      scale(age) + factor(gender) + factor(major) +
+                      scale(exposure_time) + (1 | id),
+                    data = data_2, fixef.prior = t,
                     family = binomial(link = "logit"))
 
 summary(log_mod_3)
+
+anova(log_mod_2, log_mod_3)
 
 #### Test 4 ####
 
@@ -102,7 +107,8 @@ data_5 <- data %>%
                             labels = c("Control", "Test")))
 
 log_mod_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      previous_choice + scale(age) + gender + major + (1 | id),
+                      previous_choice + scale(age) + factor(gender) +
+                      factor(major) + (1 | id),
                     data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
@@ -135,7 +141,7 @@ shapiro.test(data_6$betting_rate_bc)
 
 # Run test
 bayes.t.test(x = data_6$betting_rate_bc, mu = 0)
-print(paste('Bayes factor:', .682/.318))
+print(paste('Bayes factor:', .689/.311))
 
 bayes.t.test(x = data_6$betting_rate, mu = 0)
 print(paste('Bayes factor:', .621/.379))

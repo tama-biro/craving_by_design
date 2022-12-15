@@ -23,8 +23,9 @@ data_rt_2 <- data %>%
                         labels = c("Yellow", "Blue")))
 
 log_mod_rt <- bglmer(choice ~ reward_value + uncertainty + treatment * color +
-                      scale(age) + gender + major + scale(reaction_time) +
-                       (1 | id), fixef.prior = t, data = data_rt_2,
+                      scale(age) + factor(gender) + factor(major) +
+                       scale(reaction_time) + (1 | id),
+                     fixef.prior = t, data = data_rt_2,
                     family = binomial(link = "logit"))
 
 summary(log_mod_rt)
@@ -41,8 +42,8 @@ data_rt_5 <- data %>%
                             labels = c("Control", "Test")))
 
 log_mod_rt_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      previous_choice + scale(age) + gender + major +
-                        scale(reaction_time) + (1 | id),
+                      previous_choice + scale(age) + factor(gender) +
+                        factor(major) + scale(reaction_time) + (1 | id),
                     data = data_rt_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
@@ -71,7 +72,7 @@ ggplot(rt_plot, aes(x = treatment, y = mean, fill = color)) +
   labs(x = 'Treatment', y = 'Mean betting rate') +
   theme_minimal()
 
-
+ggsave('../Plots/main_analysis/rt_plot_by_col_treat.png', width = 10, height = 6)
 
 
 

@@ -30,6 +30,9 @@ ggplot(d1_plot, aes(x = treatment, y = mean)) +
   labs(x = 'Treatment', y = 'Mean betting rate') +
   theme_minimal()
 
+ggsave('../Plots/main_analysis/betting_rate_uncertainty_yellow.png',
+       width = 10, height = 6)
+
 
 # 2. Betting rate in yellow control by uncertainty
 d2_plot <- data %>%
@@ -55,6 +58,9 @@ ggplot(d2_plot, aes(x = treatment, y = mean, fill = uncertainty)) +
   labs(x = 'Treatment', y = 'Mean betting rate') +
   theme_minimal()
 
+
+ggsave('../Plots/main_analysis/betting_rate_uncertainty_treatment.png',
+       width = 10, height = 6)
 
 
 
