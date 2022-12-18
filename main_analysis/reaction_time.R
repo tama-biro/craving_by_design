@@ -69,10 +69,38 @@ ggplot(rt_plot, aes(x = treatment, y = mean, fill = color)) +
            position = position_dodge()) +
   geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
                 width = 0.1,  position = position_dodge(width = 0.6)) +
-  labs(x = 'Treatment', y = 'Mean betting rate') +
+  labs(x = 'Treatment', y = 'Mean RT') +
   theme_minimal()
 
 ggsave('../Plots/main_analysis/rt_plot_by_col_treat.png', width = 10, height = 6)
 
+
+# RT by decision and session color
+rt_plot_2 <- data %>%
+  filter(craver_2 == 1) %>%
+  mutate(decision = factor(choice, levels = 0:1,
+                           labels = c("Skip", "Bet")),
+         color = factor(block_type, levels = c('C', 'S'),
+                        labels = c('Yellow', 'Blue'))) %>%
+  group_by(id, decision, color) %>%
+  summarize(RT = mean(reaction_time)) %>%
+  ungroup %>%
+  group_by(decision, color) %>%
+  summarize(mean = mean(RT),
+            se = se(RT)) %>%
+  ungroup
+
+ggplot(rt_plot_2, aes(x = decision, y = mean, fill = color)) +
+  geom_bar(stat = "identity", width = 0.6,
+           position = position_dodge()) +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
+                width = 0.1,  position = position_dodge(width = 0.6)) +
+  labs(x = 'Decision', y = 'Mean RT') +
+  scale_fill_manual(name = 'Session color',
+                    breaks = c('Yellow', 'Blue'),
+                    values = c('#ffd700', '#0057b7')) +
+  theme_minimal()
+
+ggsave('../Plots/main_analysis/rt_plot_by_col_bet.png', width = 10, height = 6)
 
 

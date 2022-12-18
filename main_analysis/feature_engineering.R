@@ -16,6 +16,7 @@ for (i in 1:nrow(data)) {
   } else {
     # Previous outcomes
     out_hist <- if_else(data$outcome[(i-e_time):(i-1)] > 0, 1, 0)
+    out_hist <- data$reward_value[(i-e_time):(i-1)]*out_hist
     
     data$exposure_time[i] <- sum(out_hist*0.9^((e_time-1):0))
   }
@@ -51,7 +52,7 @@ data <- data %>%
 # Remove bets where trials are missed
 # Recode reward and uncertainty variable, make gender and major factors
 data <- data %>%
-  filter(choice != 2) %>%
+  filter(choice != 2 & previous_choice != 2) %>%
   #  filter(sequence_number != 1) %>%
   mutate(aaron_mood = factor(aaron_mood, levels = 1:0,
                              labels = c('Low', 'High')),
