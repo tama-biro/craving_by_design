@@ -7,6 +7,7 @@ data <- read.csv(filepath)
 # Iterate through data and add exposure time and previous choice
 # Initialize exposure time as 0
 e_time <- 0
+data[, c('previous_choice', 'exposure_time')] <- NA
 for (i in 1:nrow(data)) {
   
   # If exposure time is 0, assign zero
@@ -16,7 +17,7 @@ for (i in 1:nrow(data)) {
   } else {
     # Previous outcomes
     out_hist <- if_else(data$outcome[(i-e_time):(i-1)] > 0, 1, 0)
-    out_hist <- data$reward_value[(i-e_time):(i-1)]*out_hist
+    # out_hist <- data$reward_value[(i-e_time):(i-1)]*out_hist
     
     data$exposure_time[i] <- sum(out_hist*0.9^((e_time-1):0))
   }
@@ -80,6 +81,15 @@ data_mcq <- data_mcq %>%
   select(id)
 
 
+bet_always <- data %>%
+  filter(block_type == 'C') %>%
+  group_by(id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  filter(betting_rate > .7) %>%
+  select(id)
+
+
 id1 <- data %>%
   filter(craver_2 == 1) %>%
   group_by(id, treatment) %>%
@@ -87,6 +97,7 @@ id1 <- data %>%
   ungroup %>%
   filter(post_game == 0) %>%
   select(id)
+
 
 id2 <- data %>%
   filter(craver_2 == 1) %>%
@@ -102,7 +113,15 @@ id2 <- data %>%
          exclude = if_else(pre_game_strategy == 0, 1, exclude)) %>%
   filter(exclude == 1) %>%
   select(id) %>%
-  rbind(id1, data_mcq)
+  rbind(id1, data_mcq, bet_always)
+
+
+data %>%
+  filter(id %in% id2$id) %>%
+  group_by(id) %>%
+  slice_head(n = 1) %>%
+  ungroup %>%
+  select(id, treatment, craver_2)
 
 
 # Remove excluded

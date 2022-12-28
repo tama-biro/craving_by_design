@@ -70,7 +70,12 @@ ggplot(rt_plot, aes(x = treatment, y = mean, fill = color)) +
   geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
                 width = 0.1,  position = position_dodge(width = 0.6)) +
   labs(x = 'Treatment', y = 'Mean RT') +
-  theme_minimal()
+  scale_fill_manual(name = 'Session color',
+                    breaks = c('Yellow', 'Blue'),
+                    values = c('#ffd700', '#0057b7')) +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 14),
+        axis.title = element_text(size = 16))
 
 ggsave('../Plots/main_analysis/rt_plot_by_col_treat.png', width = 10, height = 6)
 
@@ -99,7 +104,9 @@ ggplot(rt_plot_2, aes(x = decision, y = mean, fill = color)) +
   scale_fill_manual(name = 'Session color',
                     breaks = c('Yellow', 'Blue'),
                     values = c('#ffd700', '#0057b7')) +
-  theme_minimal()
+  theme_minimal() +
+  theme(axis.text = element_text(size = 14),
+        axis.title = element_text(size = 16))
 
 ggsave('../Plots/main_analysis/rt_plot_by_col_bet.png', width = 10, height = 6)
 

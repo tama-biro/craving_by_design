@@ -24,7 +24,7 @@ d1_plot <- data %>%
   ungroup
 
 ggplot(d1_plot, aes(x = treatment, y = mean)) +
-  geom_bar(stat = "identity", fill = '#f7ef25', width = 0.6) +
+  geom_bar(stat = "identity", fill = '#ffd700', width = 0.6) +
   geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
                 width = 0.1) +
   labs(x = 'Treatment', y = 'Mean betting rate') +

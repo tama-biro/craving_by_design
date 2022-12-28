@@ -33,7 +33,8 @@ shapiro.test(data_1$betting_rate)
 out <- boxcox(data_1$betting_rate + 1, lambda = seq(-25, 25, by = 0.25))
 out$lambda[which.max(out$objective)]
 
-data_1$betting_rate_bc <- boxcoxTransform(data_1$betting_rate + 1, lambda = -22)
+data_1$betting_rate_bc <- boxcoxTransform(data_1$betting_rate + 1,
+                                          lambda = -22.5)
 
 skewness(sqrt(data_1$betting_rate_bc))
 shapiro.test(data_1$betting_rate_bc)

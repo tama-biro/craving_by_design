@@ -94,7 +94,7 @@ ggplot(data_dists, aes(x = treatment, y = betting_rate)) +
   scale_x_discrete(breaks = c('control', 'test'),
                    labels = c('Control', 'Test'),
                    name = 'Treatment') +
-  scale_y_continuous(breaks = seq(0, 1, 0.025),
+  scale_y_continuous(breaks = seq(0, 1, 0.05),
                      name = 'Betting rate') +
   theme_minimal() +
   facet_wrap('participant_group', nrow = 1) +
