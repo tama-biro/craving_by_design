@@ -41,14 +41,14 @@ shapiro.test(data_1$betting_rate_bc)
 
 
 # Run test
-t.test(data_1$betting_rate_bc ~ reward_value, data = data_1,
+t.test(betting_rate_bc ~ reward_value, data = data_1,
        alternative = 'less', paired = TRUE)
 
-t.test(data_1$betting_rate ~ reward_value, data = data_1,
+t.test(betting_rate ~ reward_value, data = data_1,
        alternative = 'less', paired = TRUE)
 
 # Non-parametric
-wilcox.test(data_1$betting_rate ~ reward_value, data = data_1,
+wilcox.test(betting_rate ~ reward_value, data = data_1,
             alternative = 'less', paired = TRUE)
 
 
@@ -86,6 +86,9 @@ log_mod_3 <- bglmer(choice ~ reward_value + uncertainty + treatment * color +
 summary(log_mod_3)
 
 anova(log_mod_2, log_mod_3)
+AIC(log_mod_2, log_mod_3)
+BIC(log_mod_2, log_mod_3)
+
 
 #### Test 4 ####
 
@@ -135,14 +138,14 @@ shapiro.test(data_6$betting_rate)
 out <- boxcox(data_6$betting_rate + 1, lambda = seq(-25, 25, by = 0.25))
 out$lambda[which.max(out$objective)]
 
-data_6$betting_rate_bc <- boxcoxTransform(data_6$betting_rate + 1, lambda = -4.75)
+data_6$betting_rate_bc <- boxcoxTransform(data_6$betting_rate + 1, lambda = -4.5)
 
 skewness(sqrt(data_6$betting_rate_bc))
 shapiro.test(data_6$betting_rate_bc)
 
 # Run test
 bayes.t.test(x = data_6$betting_rate_bc, mu = 0)
-print(paste('Bayes factor:', .689/.311))
+print(paste('Bayes factor:', .547/.453))
 
 bayes.t.test(x = data_6$betting_rate, mu = 0)
 print(paste('Bayes factor:', .621/.379))
@@ -170,18 +173,20 @@ shapiro.test(data_7$betting_rate)
 out <- boxcox(data_7$betting_rate + 1, lambda = seq(-25, 25, by = 0.25))
 out$lambda[which.max(out$objective)]
 
-data_7$betting_rate_bc <- boxcoxTransform(data_7$betting_rate + 1, lambda = -9)
+data_7$betting_rate_bc <- boxcoxTransform(data_7$betting_rate + 1, lambda = -9.25)
 
 skewness(sqrt(data_7$betting_rate_bc))
 shapiro.test(data_7$betting_rate_bc)
 
 
 # Run test
-t.test(data_7$betting_rate_bc ~ uncertainty, data = data_7,
+t.test(betting_rate_bc ~ uncertainty, data = data_7,
        alternative = 'less', paired = TRUE)
 
-t.test(data_7$betting_rate ~ uncertainty, data = data_7,
+t.test(betting_rate ~ uncertainty, data = data_7,
        alternative = 'less', paired = TRUE)
 
-
+# Non-parametric
+wilcox.test(betting_rate ~ uncertainty, data = data_7,
+            alternative = 'less', paired = TRUE)
 
