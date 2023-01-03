@@ -57,10 +57,11 @@ shapiro_to_text <- function (x) {
 t_test_report <- function (t_test) {
   df <- t_test$parameter
   t <- round(t_test$statistic, 3)
+  p <- round(t_test$p.value, 3)
   if (t_test$p.value < .001) {
     p <- 'p < .001'
   } else {
-    p <- paste('p =', t_test$p.value)
+    p <- paste('p =', p)
   }
   out <- paste0('t(', df, ') = ', t, ', ', p)
   return(out)
@@ -69,10 +70,11 @@ t_test_report <- function (t_test) {
 # Wilcox report
 wilcox_report <- function (wilcox) {
   v <- round(wilcox$statistic, 3)
+  p <- round(wilcox$p.value, 3)
   if (wilcox$p.value < .001) {
     p <- 'p < .001'
   } else {
-    p <- paste('p =', wilcox$p.value)
+    p <- paste('p =', p)
   }
   out <- paste('V =', v, p)
   return(out)
@@ -229,8 +231,8 @@ s_3 <- glmer_report(log_mod_3)
 
 aov_3 <- anova(log_mod_2, log_mod_3)
 aov_3 <- aov_chi_report(aov_3)
-aic_3 <- AIC(log_mod_2, log_mod_3)
-bic_3 <- BIC(log_mod_2, log_mod_3)
+aic_3 <- round(AIC(log_mod_2, log_mod_3), 0)
+bic_3 <- round(BIC(log_mod_2, log_mod_3), 0)
 ```
 
 ```{r log_mod_3_out, echo=FALSE}

@@ -13,8 +13,8 @@ for (i in 1:nrow(data)) {
   } else {
     # Previous outcomes
     out_hist <- if_else(data$outcome[(i-e_time):(i-1)] > 0, 1, 0)
-    # out_hist <- data$reward_value[(i-e_time):(i-1)]*out_hist
     
+    # data$exposure_time[i] <- sum((1:(e_time))*out_hist*0.9^((e_time-1):0))
     data$exposure_time[i] <- sum(out_hist*0.9^((e_time-1):0))
   }
   
@@ -61,57 +61,4 @@ data <- data %>%
   mutate(craver = if_else(sum(choice[block_type == 'C']) > 0, 1, 0),
          craver_2 = if_else(sum(choice[block_type == 'C']) > 1, 1, 0)) %>%
   ungroup
-
-
-# Check MCQ total per participant
-data_mcq <- data %>%
-  group_by(id) %>%
-  slice_head(n = 1) %>%
-  select(!MCQ_Q5) %>%
-  ungroup
-
-data_mcq <- data_mcq %>%
-  mutate(accuracy = rowMeans(select(data_mcq,
-                                    starts_with('MCQ')), na.rm = TRUE)) %>%
-  filter(accuracy < 1) %>%
-  select(id)
-
-
-id1 <- data %>%
-  filter(craver_2 == 1) %>%
-  group_by(id, treatment) %>%
-  summarize(post_game = mean(post_game_quiz_correct)) %>%
-  ungroup %>%
-  filter(post_game == 0) %>%
-  select(id)
-
-
-id2 <- data %>%
-  filter(craver_2 == 1) %>%
-  group_by(id, treatment) %>%
-  slice_head(n = 1) %>%
-  ungroup %>%
-  mutate(exclude = 0,
-         exclude = if_else(odds_guess_one_reply == 1 &
-                             odds_guess_two_did_win == 0, 1, exclude),
-         exclude = if_else(odds_guess_one_reply == 2 &
-                             odds_guess_two_reply == 1 &
-                             odds_guess_three_did_win == 0, 1, exclude),
-         exclude = if_else(pre_game_strategy == 0, 1, exclude)) %>%
-  filter(exclude == 1) %>%
-  select(id) %>%
-  rbind(id1, data_mcq)
-
-
-data %>%
-  filter(id %in% id2$id) %>%
-  group_by(id) %>%
-  slice_head(n = 1) %>%
-  ungroup %>%
-  select(id, treatment, craver_2)
-
-
-# Remove excluded
-data <- data %>%
-  filter(!(id %in% id2$id))
 
