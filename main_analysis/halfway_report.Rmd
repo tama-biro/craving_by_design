@@ -944,11 +944,11 @@ data_5 <- data %>%
          age = scale(age),
          gender = factor(gender),
          major = factor(major),
-         reaction_time = scale(reaction_time))
+         exposure_time = scale(exposure_time))
 
 log_mod_new_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
                       previous_choice + age + gender +
-                      major + (1 | id),
+                      major + exposure_time + (1 | id),
                     data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
