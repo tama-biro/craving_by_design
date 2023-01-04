@@ -37,7 +37,7 @@ suppressMessages({
   library(tinytex)
 })
 
-setwd('/Users/sam/Documents/GitHub/craving_by_design/main_analysis')
+setwd('C:/Users/samue/Documents/GitHub/craving_by_design/main_analysis')
 
 # SE function
 se <- function (x) {
@@ -221,10 +221,10 @@ Mixed-effects model predicting betting in all trials. Same as test 2, but with e
 
 ```{r log_mod_3, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_2 <- data_2 %>%
-  mutate(exposure_time = scale(exposure_time))
+  mutate(reward_history = scale(exposure_time))
 
-log_mod_3 <- bglmer(choice ~ reward_value + uncertainty + treatment * color +
-                      age + gender + major + exposure_time + (1 | id),
+log_mod_3 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major + reward_history + (1 | id),
                     data = data_2, fixef.prior = t,
                     family = binomial(link = "logit"))
 
@@ -240,9 +240,36 @@ bic_3 <- round(BIC(log_mod_2, log_mod_3), 0)
 kable(s_3, format = "latex", align = 'c')
 ```
 
-In addition to the regression table, the exposure variable can be tested by comparing the model from test 2 with this one to see if the addition of reward exposure statistically significantly improved fit.
+In addition to the regression table, the reward history variable can be tested by comparing the model from test 2 with this one to see if the addition of reward history statistically significantly improved fit.
 
 Comparing the models, the difference between them is not statistically significant (`r aov_3`). The models had similar AIC (test2 = `r aic_3$AIC[1]`, test3 = `r aic_3$AIC[2]`) and the model from test 2 had lower BIC than the model from test 3 (`r bic_3$BIC[1]` compared to `r bic_3$BIC[2]`). This means the model in test 2 is preferred due to having fewer variables while explaining the data equally well.
+
+## Test 3.1
+
+This test is a copy of test 2, but with previous choice added as a variable instead of reward history. The same method is used to check the models.
+
+```{r log_mod_3_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+log_mod_3_1 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major +
+                      previous_choice + (1 | id),
+                    data = data_2, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+s_3_1 <- glmer_report(log_mod_3_1)
+
+aov_3_1 <- anova(log_mod_2, log_mod_3_1)
+aov_3_1 <- aov_chi_report(aov_3_1)
+aic_3_1 <- round(AIC(log_mod_2, log_mod_3_1), 0)
+bic_3_1 <- round(BIC(log_mod_2, log_mod_3_1), 0)
+```
+
+```{r log_mod_3_1_out, echo=FALSE}
+kable(s_3_1, format = "latex", align = 'c')
+```
+
+In addition to the regression table, the exposure variable can be tested by comparing the model from test 2 with this one to see if the addition of reward exposure statistically significantly improved fit.
+
+Comparing the models, the difference between them is statistically significant (`r aov_3`). The model with previous choice had lower AIC (test2 = `r aic_3$AIC[1]`, test3 = `r aic_3$AIC[2]`) and lower BIC (`r bic_3$BIC[1]` compared to `r bic_3$BIC[2]`). This means the model with previous choice is preferred.
 
 ## Test 4
 
@@ -264,8 +291,8 @@ data_5 <- data %>%
          major = factor(major))
 
 log_mod_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      previous_choice + scale(age) + factor(gender) +
-                      factor(major) + (1 | id),
+                      previous_choice + age + gender +
+                      major + (1 | id),
                     data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
@@ -598,7 +625,7 @@ data_plot <- data_plot_b %>%
                                 labels = c("(A) Blue", "(B) Yellow")))
 ```
 
-```{r exp_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the blue background sessions (A) and yellow background sessions (B) as a function of prior reward exposure (as defined in computational model) for all participants and sessions, with reward exposure split into 3 equally sized bins.'}
+```{r exp_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the blue background sessions (A) and yellow background sessions (B) as a function of prior reward history (as defined in computational model) for all participants and sessions, with reward history split into 3 equally sized bins.'}
 ggplot(data_plot, aes(x = exp_bins,
                       y = betting_rate,
                       col = session_color)) +
@@ -606,7 +633,7 @@ ggplot(data_plot, aes(x = exp_bins,
   geom_errorbar(aes(ymin = betting_rate - se,
                     ymax = betting_rate + se),
                 width = 0.2) +
-  labs(x = 'Previous reward exposure', y = 'Betting rate') +
+  labs(x = 'Previous reward history', y = 'Betting rate') +
   scale_x_continuous(breaks = 1:3) +
   scale_color_manual(name = 'Session color',
                      breaks = c('(A) Blue', '(B) Yellow'),
@@ -916,9 +943,9 @@ ggplot(data_plot, aes(x = treatment,
 
 \newpage
 
-# Reward exposure with reward value
+# Reward history with different theta
 
-This section checks results for the reward exposure variable when including the reward value in the calculation rather than a binary indicator (0, 1). This is done by reproducing test 3 and figure 5 using the new design of the reward exposure variable.
+This section checks results for the reward history variable when using theta = 0.95 instead of 0.9. This is done by reproducing test 3 and 5 as well as figure 5 using the new design of the reward history variable. In the copy of model 5, previous choice is removed as it correlates heavily with reward history.
 
 ```{r fe_rew, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 filepath <- '../data/data_full.csv'
@@ -947,11 +974,11 @@ data_5 <- data %>%
          age = scale(age),
          gender = factor(gender),
          major = factor(major),
-         exposure_time = scale(exposure_time))
+         reward_history = scale(exposure_time))
 
 log_mod_new_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      previous_choice + age + gender +
-                      major + exposure_time + (1 | id),
+                      age + gender +
+                      major + reward_history + (1 | id),
                     data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
@@ -966,7 +993,7 @@ kable(s_new_5, format = "latex", align = 'c')
 
 ## Test 3
 
-Mixed-effects model predicting betting in all trials. Same as test 2, but with exposure time added in order to see if betting increases with reward exposure.
+Mixed-effects model predicting betting in all trials. Same as test 2, but with reward history added in order to see if betting increases with reward histoty
 
 ```{r log_mod_3_rew, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_2 <- data %>%
@@ -981,11 +1008,11 @@ data_2 <- data %>%
          age = scale(age),
          gender = factor(gender),
          major = factor(major),
-         exposure_time = scale(exposure_time))
+         reward_history = scale(exposure_time))
 
 log_mod_3 <- bglmer(choice ~ reward_value + uncertainty +
                       treatment * color +
-                      age + gender + major + exposure_time + (1 | id),
+                      age + gender + major + reward_history + (1 | id),
                     data = data_2, fixef.prior = t,
                     family = binomial(link = "logit"))
 
@@ -1032,7 +1059,7 @@ data_plot <- data_plot_b %>%
                                 labels = c("(A) Blue", "(B) Yellow")))
 ```
 
-```{r rew_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the blue background sessions (A) and yellow background sessions (B) as a function of prior reward exposure (as defined in computational model) for all participants and sessions, with reward exposure split into 3 equally sized bins.'}
+```{r rew_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the blue background sessions (A) and yellow background sessions (B) as a function of prior reward history (as defined in computational model) for all participants and sessions, with reward history split into 3 equally sized bins.'}
 ggplot(data_plot, aes(x = exp_bins,
                       y = betting_rate,
                       col = session_color)) +
@@ -1040,7 +1067,7 @@ ggplot(data_plot, aes(x = exp_bins,
   geom_errorbar(aes(ymin = betting_rate - se,
                     ymax = betting_rate + se),
                 width = 0.2) +
-  labs(x = 'Previous reward exposure', y = 'Betting rate') +
+  labs(x = 'Previous reward history', y = 'Betting rate') +
   scale_x_continuous(breaks = 1:3) +
   scale_color_manual(name = 'Session color',
                      breaks = c('(A) Blue', '(B) Yellow'),
@@ -1064,7 +1091,7 @@ data <- read.csv(filepath)
 
 We wanted to check whether participants might bet in yellow in the control treatment out of boredom (skipping many times in a row could be boring as nothing happens). To do this, we fashioned a few extra variables and checked their importance in explaining differences in betting rates.
 
-First, we produced two additional plots to check whether betting was different over the course of blocks in yellow in control. One variable compared the first block in a sequence of yellow to the second and third, and one variable compared the first and second block to the third in a sequence. The results are shown in the bar charts below.
+First, we produced two additional plots to check whether betting was different over the course of sessions in yellow in control. One variable compared the first session in a sequence of yellow to the second and third, and one variable compared the first and second session to the third in a sequence. The results are shown in the bar charts below.
 
 ```{r boredom_data_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 # Make indicator of where blue interspersed block is
@@ -1138,7 +1165,7 @@ data_plot <- data %>%
   mutate(group = c("Control\n(first/second)", "Control\n(third)", "Test"))
 ```
 
-```{r boredom_plot_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the first/second or third block in a sequence of yellow blocks in the control treatment. Betting rate for the test treatment is shown individually.'}
+```{r boredom_plot_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the first/second or third sessions in a sequence of yellow sessions in the control treatment. Betting rate for the test treatment is shown individually.'}
 ggplot(data_plot, aes(x = group, y = mean)) +
   geom_bar(stat = 'identity', fill = '#ffd700') +
   geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
@@ -1211,7 +1238,7 @@ data_plot <- data %>%
   mutate(group = c("Control\n(first)", "Control\n(second/third)", "Test"))
 ```
 
-```{r boredom_plot_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the first or second/third block in a sequence of yellow blocks in the control treatment. Betting rate for the test treatment is shown individually.'}
+```{r boredom_plot_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the first or second/third session in a sequence of yellow sessions in the control treatment. Betting rate for the test treatment is shown individually.'}
 ggplot(data_plot, aes(x = group, y = mean)) +
   geom_bar(stat = 'identity', fill = '#ffd700') +
   geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
@@ -1221,7 +1248,7 @@ ggplot(data_plot, aes(x = group, y = mean)) +
         axis.text = element_text(size = 14))
 ```
 
-Next, a special version of test 5 in the main analysis above was run. We created two version of the same model. One restricting blocks in the control treatment to the first block in a sequence and one restricting blocks in control to the first/second blocks. This was done to avoid overcomplicating model architecture with additional variables and interactions. It also creates models with the assumption that all data is “free from boredom” rather than controlling for it. Regression tables are presented below.
+Next, a special version of test 5 in the main analysis above was run. We created two version of the same model. One restricting sessions in the control treatment to the first session in a sequence and one restricting sessions in control to the first/second sessions. This was done to avoid overcomplicating model architecture with additional variables and interactions. It also creates models with the assumption that all data is “free from boredom” rather than controlling for it. Regression tables are presented below.
 
 ```{r log_1_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 # Set order of yellow blocks (first included)
@@ -1516,12 +1543,12 @@ kable(s_loss_5, format = "latex", align = 'c')
 
 \newpage
 
-# First 4 blocks of blue in test/control
+# First 4 sessions of blue in test/control
 
-We checked the difference in betting rates in the first 4 blue blocks in the test and control treatment separately. This is shown in a bar chart below as well as a t-test checking the difference in betting rates between test and control. Only the first “actual” blue blocks are used. Interspersed blocks and clocks before the experiment (to avoid boredom) were not used.
+We checked the difference in betting rates in the first 4 blue sessions in the test and control treatment separately. This is shown in a bar chart below as well as a t-test checking the difference in betting rates between test and control. Only the first “actual” blue sessions are used. Interspersed sessions and clocks before the experiment (to avoid boredom) were not used.
 
 ```{r blue_data, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-# Betting in first 4 blue blocks test/ctrl
+# Betting in first 4 blue sessions test/ctrl
 data_plot <- data %>%
   mutate(first_blue = if_else(treatment == 'control' &
                                 block_type == 'S' &
@@ -1538,7 +1565,7 @@ data_plot <- data %>%
   ungroup
 ```
 
-```{r blue_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Average betting rates in the first 4 blue blocks for the control and test treatment. Error bars show SEM.'}
+```{r blue_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Average betting rates in the first 4 blue sessions for the control and test treatment. Error bars show SEM.'}
 ggplot(data_plot, aes(x = treatment, y = mean)) +
   geom_bar(stat = 'identity', fill = '#0057b7', width = 0.7) +
   geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
@@ -1569,4 +1596,4 @@ blue_t_test <- t.test(betting_rate ~ treatment, data = data_ttest,
 blue_t_test <- t_test_report(blue_t_test)
 ```
 
-A two-sample t-test comparing the difference in betting rates in the first 4 blue blocks found no difference in mean between the two treatments (Welch two-sample t-test, `r blue_t_test`).
+A two-sample t-test comparing the difference in betting rates in the first 4 blue sessions found no difference in mean between the two treatments (Welch two-sample t-test, `r blue_t_test`).
