@@ -828,7 +828,7 @@ n_new <- length(unique(data$id))
 
 # Treatment effect in new sample only
 
-We also test the treatment effect in yellow in the new sample when we exclude all pilot participants. This subsample has `r n_new`` participants.z
+We also test the treatment effect in yellow in the new sample when we exclude all pilot participants. This subsample has `r n_new` participants.
 
 The treatment effect is examined by running test 5 and producing figure 2 for the new sample alone.
 
