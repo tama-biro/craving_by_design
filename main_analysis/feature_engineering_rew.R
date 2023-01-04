@@ -13,9 +13,9 @@ for (i in 1:nrow(data)) {
   } else {
     # Previous outcomes
     out_hist <- if_else(data$outcome[(i-e_time):(i-1)] > 0, 1, 0)
-    out_hist <- data$reward_value[(i-e_time):(i-1)]*out_hist
+    # out_hist <- data$reward_value[(i-e_time):(i-1)]*out_hist
     
-    data$exposure_time[i] <- sum(out_hist*0.9^((e_time-1):0))
+    data$exposure_time[i] <- sum(out_hist*0.95^((e_time-1):0))
   }
   
   # Reset if new sequence

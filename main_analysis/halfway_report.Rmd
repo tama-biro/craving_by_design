@@ -1,7 +1,8 @@
 ---
-title: "Halfway Report 23-01-03"
+title: "Halfway Report 23-01-04"
 author: "Samuel Thelaus"
-date: "2023-01-03"
+date: "2023-01-04"
+
 output:
   pdf_document: default
   html_document:
@@ -461,7 +462,7 @@ data_plot <- data_plot1 %>%
                                     labels = c("(A) Pooled", "(B) Cravers")))
 ```
 
-```{r treat_col_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='(A) Average betting rate in low and high reward sessions. (B) Average betting rate in low and high uncertainty sessions.'}
+```{r treat_col_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Average betting rate by session color and treatment, for all participants pooled and cravers individually.'}
 ggplot(data_plot, aes(x = treatment,
                       y = betting_rate,
                       fill = block_type)) +
@@ -546,7 +547,7 @@ data_dists <- data_dists1 %>%
                                     labels = c("(A) Pooled", "(B) Cravers")))
 ```
 
-```{r dist_blue_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Distribution of betting rates by participant for all participants (A) and for the craver group (B) in yellow background sessions.'}
+```{r dist_blue_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Distribution of betting rates by participant for all participants (A) and for the craver group (B) in blue background sessions.'}
 ggplot(data_dists, aes(x = treatment, y = betting_rate)) +
   geom_boxplot() +
   scale_x_discrete(breaks = c('control', 'test'),
@@ -809,12 +810,6 @@ ggplot(rt_plot_2, aes(x = decision, y = mean, fill = color)) +
 
 \newpage
 
-# Treatment effect in new sample only
-
-We also test the treatment effect in yellow in the new sample when we exclude all pilot participants. This subsample has 92 participants after excluding two participants.
-
-The treatment effect is examined by running test 5 and producing figure 2 for the new sample alone.
-
 ```{r fe_new, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 filepath <- '../data/november_subset/data_full.csv'
 data <- read.csv(filepath)
@@ -828,7 +823,15 @@ write.csv(data, file = '../data/november_subset/data_reduced.csv', row.names = F
 ```{r load_new, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 filepath <- '../data/november_subset/data_reduced.csv'
 data <- read.csv(filepath)
+
+n_new <- length(unique(data$id))
 ```
+
+# Treatment effect in new sample only
+
+We also test the treatment effect in yellow in the new sample when we exclude all pilot participants. This subsample has `r n_new` participants.
+
+The treatment effect is examined by running test 5 and producing figure 2 for the new sample alone.
 
 ```{r new_log_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_5 <- data %>%
@@ -1067,7 +1070,7 @@ First, we produced two additional plots to check whether betting was different o
 # Make indicator of where blue interspersed block is
 data <- data %>%
   group_by(sequence_number, id) %>%
-  mutate(blue_interspersed = 
+  mutate(blue_interspersed =
            if_else(block_type == 'S' & block_number == 2, 2,
                    if_else(block_type == 'S' & block_number == 3, 3, 
                            if_else(block_type == 'S' & block_number == 4, 4, 1)))) %>%
@@ -1132,10 +1135,10 @@ data_plot <- data %>%
   summarize(mean = mean(betting_rate),
             se = se(betting_rate)) %>%
   ungroup %>%
-  mutate(group = c("Control\n(first)", "Control\n(second/third)", "Test"))
+  mutate(group = c("Control\n(first/second)", "Control\n(third)", "Test"))
 ```
 
-```{r boredom_plot_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the first or second/third block in a sequence of yellow blocks in the control treatment. Betting rate for the test treatment is shown individually.'}
+```{r boredom_plot_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the first/second or third block in a sequence of yellow blocks in the control treatment. Betting rate for the test treatment is shown individually.'}
 ggplot(data_plot, aes(x = group, y = mean)) +
   geom_bar(stat = 'identity', fill = '#ffd700') +
   geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
@@ -1205,10 +1208,10 @@ data_plot <- data %>%
   summarize(mean = mean(betting_rate),
             se = se(betting_rate)) %>%
   ungroup %>%
-  mutate(group = c("Control\n(first/second)", "Control\n(third)", "Test"))
+  mutate(group = c("Control\n(first)", "Control\n(second/third)", "Test"))
 ```
 
-```{r boredom_plot_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the first/second or third block in a sequence of yellow blocks in the control treatment. Betting rate for the test treatment is shown individually.'}
+```{r boredom_plot_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the first or second/third block in a sequence of yellow blocks in the control treatment. Betting rate for the test treatment is shown individually.'}
 ggplot(data_plot, aes(x = group, y = mean)) +
   geom_bar(stat = 'identity', fill = '#ffd700') +
   geom_errorbar(aes(ymin = mean - se, ymax = mean + se), width = 0.2) +
