@@ -2,6 +2,7 @@
 title: "Halfway Report 23-01-04"
 author: "Samuel Thelaus"
 date: "2023-01-04"
+
 output:
   pdf_document: default
   html_document:
@@ -36,7 +37,7 @@ suppressMessages({
   library(tinytex)
 })
 
-setwd('C:/Users/samue/Documents/GitHub/craving_by_design/main_analysis')
+setwd('/Users/sam/Documents/GitHub/craving_by_design/main_analysis')
 
 # SE function
 se <- function (x) {
