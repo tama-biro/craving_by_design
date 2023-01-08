@@ -931,7 +931,7 @@ data <- read.csv(filepath)
 
 ```{r rew_log_5_95, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_5 <- data %>%
-  filter(block_type == "C" & craver_2 == 1 & yellow_order_ctrl == 0) %>%
+  filter(block_type == "C" & craver_2 == 1) %>%
   mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
                                labels = c("Low", "High")),
          uncertainty = factor(aaron_mood, levels = c("Low", "High"),
@@ -997,7 +997,7 @@ data <- read.csv(filepath)
 
 ```{r rew_log_5_100, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_5 <- data %>%
-  filter(block_type == "C" & craver_2 == 1 & yellow_order_ctrl == 0) %>%
+  filter(block_type == "C" & craver_2 == 1) %>%
   mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
                                labels = c("Low", "High")),
          uncertainty = factor(aaron_mood, levels = c("Low", "High"),
@@ -1291,7 +1291,7 @@ s_5_loss <- glmer_report(log_mod_5_loss)
 ## Test 5 - first and second in sequence only
 
 ```{r log_loss_5_out, echo=FALSE}
-kable(s_loss_5, format = "latex", align = 'c') %>%
+kable(s_5_loss, format = "latex", align = 'c') %>%
   kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001")
 ```
 
@@ -1593,7 +1593,7 @@ ggplot(data_plot, aes(x = treatment,
 
 ```{r load_data_after_new, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 filepath <- '../data/data_reduced.csv'
-data <- read.csv(filepath, row.names = FALSE)
+data <- read.csv(filepath)
 ```
 
 ## Boredom in control in yellow
