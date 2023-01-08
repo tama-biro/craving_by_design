@@ -1,7 +1,7 @@
 ---
-title: "Halfway Report 23-01-04"
+title: "Halfway Report 23-01-08"
 author: "Samuel Thelaus"
-date: "2023-01-04"
+date: "2023-01-08"
 
 output:
   pdf_document: default
@@ -34,6 +34,7 @@ suppressMessages({
   library(blme)
   library(BayesianFirstAid)
   library(knitr)
+  library(MuMIn)
   library(tinytex)
 })
 
@@ -85,14 +86,19 @@ wilcox_report <- function (wilcox) {
 glmer_report <- function (mod) {
   s <- summary(mod)$coefficients
   s <- as.data.frame(s)
-  colnames(s) <- c('Beta', 'SE', 'z-value', 'p')
+  colnames(s) <- c('Beta', 'SE', 'z', 'p')
   s <- round(s, 3)
   s <- s %>%
     mutate(p =
-             ifelse(p < .001, '< .001 ***',
-                     ifelse(p < .01, paste(p, '**'),
-                             ifelse(p < .05, paste(p, '*'), p))))
-  colnames(s) <- c('Beta', 'SE', 'z-value', 'p-value')
+             ifelse(p < .001, 'p < .001***',
+                     ifelse(p < .01, paste0('p = ', p, '**'),
+                             ifelse(p < .05, paste0('p = ', p, '*'),
+                                    paste('p =', p)))))
+  colnames(s) <- c('Beta', 'SE', 'z', 'p')
+  s <- s %>%
+    mutate(m_1 = paste0(Beta, ' (', SE, '), ', p)) %>%
+    select(m_1) %>%
+    rownames_to_column("Variable")
   return(s)
 }
 
@@ -113,6 +119,10 @@ aov_chi_report <- function (mod) {
 ```{r feature eng, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 filepath <- '../data/data_full.csv'
 data <- read.csv(filepath)
+
+theta_fun <- function() {
+  return(0.9)
+}
 
 source("./feature_engineering.R", local = knit_global())
 
@@ -186,9 +196,9 @@ Data was skewed at `r skew_1_bf` (ideal values within [-1, 1]) and a Shapiro-Wil
 
 Paired t-test using Box-Cox transformed data showed higher betting rate in high reward sessions (`r t_test_1`). Non-parametric paired Wilcoxon test using non-transformed data showed qualitatively same results (`r wilcox_1`).
 
-## Test 2
+## Test 2 & test 3
 
-Logistic mixed-effects model predicting betting in all trials. Using penalized log-likelihood to correct for imbalanced groups.
+Logistic mixed-effects model predicting betting in all trials. Using penalized log-likelihood to correct for imbalanced groups. The same model is also presented with the previous choice variable to control for choice inertia. The models are compared on AIC (bias toward overfitting) and on BIC (bias toward underfitting). The forward stepwise process to build the model is shown in the appendix for these models and test 5.
 
 ```{r log_mod_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_2 <- data %>%
@@ -202,80 +212,62 @@ data_2 <- data %>%
                         labels = c("Yellow", "Blue")),
          age = scale(age),
          gender = factor(gender),
-         major = factor(major))
+         major = factor(major),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
 
-log_mod_2 <- bglmer(choice ~ reward_value + uncertainty + treatment * color +
-                      age + gender + major + (1 | id),
+log_mod_2 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major +
+                      reaction_time + sequence_number + (1 | id),
                     fixef.prior = t, data = data_2,
                     family = binomial(link = "logit"))
 
 s_2 <- glmer_report(log_mod_2)
 ```
 
-```{r log_mod_2_out, echo=FALSE}
-kable(s_2, format = "latex", align = 'c')
-```
-## Test 3
-
-Mixed-effects model predicting betting in all trials. Same as test 2, but with exposure time added in order to see if betting increases with reward exposure.
-
 ```{r log_mod_3, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_2 <- data_2 %>%
-  mutate(reward_history = scale(exposure_time))
-
 log_mod_3 <- bglmer(choice ~ reward_value + uncertainty +
-                      treatment * color + age + gender + major + reward_history + (1 | id),
-                    data = data_2, fixef.prior = t,
+                      treatment * color + age + gender + major +
+                      reaction_time + sequence_number + 
+                      previous_choice + (1 | id),
+                    fixef.prior = t, data = data_2,
                     family = binomial(link = "logit"))
 
 s_3 <- glmer_report(log_mod_3)
 
+colnames(s_2) <- c('Variable', '(1)')
+colnames(s_3) <- c('Variable', '(2)')
+
 aov_3 <- anova(log_mod_2, log_mod_3)
 aov_3 <- aov_chi_report(aov_3)
 aic_3 <- round(AIC(log_mod_2, log_mod_3), 0)
+aic_3 <- c('AIC', as.character(aic_3$AIC))
 bic_3 <- round(BIC(log_mod_2, log_mod_3), 0)
+bic_3 <- c('BIC', as.character(bic_3$BIC))
+
+s_23 <- s_2 %>%
+  right_join(s_3) %>%
+  replace_na(list('Variable' = '-',
+                  '(1)' = '-',
+                  '(2)' = '-')) %>%
+  rbind(rep('-', 3)) %>%
+  rbind(aic_3) %>%
+  rbind(bic_3)
 ```
 
-```{r log_mod_3_out, echo=FALSE}
-kable(s_3, format = "latex", align = 'c')
+```{r log_mod_23_out, echo=FALSE}
+kable(s_23, format = "latex", align = 'c',
+      caption = 'Model 1 vs. model 2, with and without the previous choice variable') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001")
 ```
 
-In addition to the regression table, the reward history variable can be tested by comparing the model from test 2 with this one to see if the addition of reward history statistically significantly improved fit.
-
-Comparing the models, the difference between them is not statistically significant (`r aov_3`). The models had similar AIC (test2 = `r aic_3$AIC[1]`, test3 = `r aic_3$AIC[2]`) and the model from test 2 had lower BIC than the model from test 3 (`r bic_3$BIC[1]` compared to `r bic_3$BIC[2]`). This means the model in test 2 is preferred due to having fewer variables while explaining the data equally well.
-
-## Test 3.1
-
-This test is a copy of test 2, but with previous choice added as a variable instead of reward history. The same method is used to check the models.
-
-```{r log_mod_3_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-log_mod_3_1 <- bglmer(choice ~ reward_value + uncertainty +
-                      treatment * color + age + gender + major +
-                      previous_choice + (1 | id),
-                    data = data_2, fixef.prior = t,
-                    family = binomial(link = "logit"))
-
-s_3_1 <- glmer_report(log_mod_3_1)
-
-aov_3_1 <- anova(log_mod_2, log_mod_3_1)
-aov_3_1 <- aov_chi_report(aov_3_1)
-aic_3_1 <- round(AIC(log_mod_2, log_mod_3_1), 0)
-bic_3_1 <- round(BIC(log_mod_2, log_mod_3_1), 0)
-```
-
-```{r log_mod_3_1_out, echo=FALSE}
-kable(s_3_1, format = "latex", align = 'c')
-```
-
-In addition to the regression table, the exposure variable can be tested by comparing the model from test 2 with this one to see if the addition of reward exposure statistically significantly improved fit.
-
-Comparing the models, the difference between them is statistically significant (`r aov_3`). The model with previous choice had lower AIC (test2 = `r aic_3$AIC[1]`, test3 = `r aic_3$AIC[2]`) and lower BIC (`r bic_3$BIC[1]` compared to `r bic_3$BIC[2]`). This means the model with previous choice is preferred.
+Comparing the models, the difference between them was statistically significant (`r aov_3`) suggesting the model with previous choice is the better model.
 
 ## Test 4
 
 ## Test 5
 
-Logistic mixed-effects model predicting betting among cravers in the yellow background sessions.
+Logistic mixed-effects model predicting betting among cravers in the yellow background sessions. Three models are shown. The first model uses all available data. The second model uses data only from the first yellow session in an order of yellow sessions for the control treatment. The third model uses data only from the first and second yellow session in an order of yellow sessions for the control treatment. The models can not be compared on AIC, BIC or with a chi-squared test as they are not using the same data.
 
 ```{r log_mod_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_5 <- data %>%
@@ -288,19 +280,145 @@ data_5 <- data %>%
                             labels = c("Control", "Test")),
          age = scale(age),
          gender = factor(gender),
-         major = factor(major))
+         major = factor(major),
+         reward_history = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
 
 log_mod_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      previous_choice + age + gender +
-                      major + (1 | id),
+                      age + gender + major + reaction_time +
+                      sequence_number + reward_history + (1 | id),
                     data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
 s_5 <- glmer_report(log_mod_5)
 ```
 
+```{r log_1_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# Set order of yellow blocks (first included)
+data$yellow_order_ctrl <- 0
+for(id in unique(data$id[data$treatment == 'control'])) {
+  for(seq in unique(data$sequence_number[data$id == id])) {
+    indicator <- data$blue_interspersed[
+      data$sequence_number == seq & data$id == id
+    ][1]
+    
+    if(indicator == 2) {
+      data$yellow_order_ctrl[
+        data$sequence_number == seq &
+          data$id == id &
+          data$block_type == 'C' &
+          data$block_number %in% c(4, 5)
+      ] <- 1
+    } else if(indicator == 3) {
+      data$yellow_order_ctrl[
+        data$sequence_number == seq &
+          data$id == id &
+          data$block_type == 'C' &
+          data$block_number %in% c(2, 5)
+      ] <- 1
+    } else if(indicator == 4) {
+      data$yellow_order_ctrl[
+        data$sequence_number == seq &
+          data$id == id &
+          data$block_type == 'C' &
+          data$block_number %in% c(2, 3)
+      ] <- 1
+    }
+    
+  }
+}
+
+data_5 <- data %>%
+  filter(block_type == "C" & craver_2 == 1 & yellow_order_ctrl == 0) %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reward_history = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_1_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                      age + gender + major + reaction_time +
+                      sequence_number + reward_history + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+s_1_5 <- glmer_report(log_mod_1_5)
+```
+
+```{r log_12_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# Set order of yellow blocks (first/second included)
+data$yellow_order_ctrl <- 0
+for(id in unique(data$id[data$treatment == 'control'])) {
+  for(seq in unique(data$sequence_number[data$id == id])) {
+    indicator <- data$blue_interspersed[
+      data$sequence_number == seq & data$id == id
+    ][1]
+
+    if(indicator == 2) {
+      data$yellow_order_ctrl[
+        data$sequence_number == seq &
+          data$id == id &
+          data$block_type == 'C' &
+          data$block_number == 5
+      ] <- 1
+    } else if(indicator == 4) {
+      data$yellow_order_ctrl[
+        data$sequence_number == seq &
+          data$id == id &
+          data$block_type == 'C' &
+          data$block_number == 3
+      ] <- 1
+    }
+    
+  }
+}
+
+data_5 <- data %>%
+  filter(block_type == "C" & craver_2 == 1 & yellow_order_ctrl == 0) %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reward_history = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_12_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                       age + gender + major + reaction_time +
+                      sequence_number + reward_history + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+s_12_5 <- glmer_report(log_mod_12_5)
+```
+
+```{r log_mod_5_combine, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+colnames(s_5) <- c('Variable', '(1)')
+colnames(s_1_5) <- c('Variable', '(2)')
+colnames(s_12_5) <- c('Variable', '(3)')
+
+s_5_out <- s_5 %>%
+  left_join(s_1_5) %>%
+  left_join(s_12_5)
+```
+
 ```{r log_mod_5_out, echo=FALSE}
-kable(s_5, format = "latex", align = 'c')
+kable(s_5_out, format = "latex", align = 'c',
+      caption = 'Three versions of test 5 on different subsets of data. Model 1 uses all available data. Model 2 uses only the first yellow session in an order in control. Model 3 uses only the first and second yellow session in an order in control.') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001")
 ```
 
 ```{r bayes_6, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
@@ -591,10 +709,10 @@ ggplot(data_dists, aes(x = treatment, y = betting_rate)) +
 
 ```{r exp_data, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_plot_y <- data %>%
-  filter(block_type == 'C') %>%
+  filter(block_type == 'C' & craver_2 == 1) %>%
   mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
          exp_num = cut_interval(exposure_time, 3)) %>%
-  group_by(exp_bins, craver_2, id) %>%
+  group_by(exp_bins, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
   group_by(exp_bins) %>%
@@ -603,10 +721,10 @@ data_plot_y <- data %>%
   ungroup
 
 data_plot_b <- data %>%
-  filter(block_type == 'S') %>%
+  filter(block_type == 'S' & craver_2 == 1) %>%
   mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
          exp_num = cut_interval(exposure_time, 3)) %>%
-  group_by(exp_bins, craver_2, id) %>%
+  group_by(exp_bins, id) %>%
   summarize(betting_rate = mean(choice)) %>%
   ungroup %>%
   filter(betting_rate > .6) %>%
@@ -707,72 +825,9 @@ ggplot(d2_plot, aes(x = treatment, y = mean, fill = uncertainty)) +
 
 \newpage
 
-# Reaction time stuff
+# Reaction time plots
 
-The effect of reaction time was checked using 3 tests. First, the logistic models from test 2 and test 5 were built but with the added value for reaction time. Then a plot was made showing reaction time by treatment and session color.
-
-```{r rt_log_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_rt_2 <- data %>%
-  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
-                               labels = c("Low", "High")),
-         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
-                              labels = c("Low", "High")),
-         treatment = factor(treatment, levels = c("control", "test"),
-                            labels = c("Control", "Test")),
-         color = factor(block_type, levels = c("C", "S"),
-                        labels = c("Yellow", "Blue")),
-         age = scale(age),
-         gender = factor(gender),
-         major = factor(major),
-         reaction_time = scale(reaction_time))
-
-log_mod_rt_2 <- bglmer(choice ~ reward_value + uncertainty +
-                       treatment * color + age + gender +
-                       major + reaction_time + (1 | id),
-                     fixef.prior = t, data = data_rt_2,
-                    family = binomial(link = "logit"))
-
-s_rt_2 <- glmer_report(log_mod_rt_2)
-```
-
-## Test 2 copy
-
-Logistic mixed-effects model predicting betting in all trials. Using penalized log-likelihood to correct for imbalanced groups.
-
-```{r rt_log_2_out, echo=FALSE}
-kable(s_rt_2, format = "latex", align = 'c')
-```
-
-```{r rt_log_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_rt_5 <- data %>%
-  filter(block_type == "C" & craver_2 == 1) %>%
-  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
-                               labels = c("Low", "High")),
-         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
-                              labels = c("Low", "High")),
-         treatment = factor(treatment, levels = c("control", "test"),
-                            labels = c("Control", "Test")),
-         age = scale(age),
-         gender = factor(gender),
-         major = factor(major),
-         reaction_time = scale(reaction_time))
-
-log_mod_rt_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      previous_choice + age + gender +
-                        major + reaction_time + (1 | id),
-                    data = data_rt_5, fixef.prior = t,
-                    family = binomial(link = "logit"))
-
-s_rt_5 <- glmer_report(log_mod_rt_5)
-```
-
-## Test 5 copy
-
-Logistic mixed-effects model predicting betting among cravers in the yellow background sessions.
-
-```{r rt_log_5_out, echo=FALSE}
-kable(s_rt_5, format = "latex", align = 'c')
-```
+Two plots showing reaction time by treatment and session color and in another plot by decision type and session color. Reaction time is also added as a variable  in the logistic models in the main analysis above.
 
 ```{r rt_treat_col_data, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 rt_plot <- data %>%
@@ -837,9 +892,477 @@ ggplot(rt_plot_2, aes(x = decision, y = mean, fill = color)) +
 
 \newpage
 
+# Reward history with different theta
+
+This section checks results for the reward history variable when using theta = 0.95 and theta = 1 instead of 0.9. This is done by reproducing test 5 as well as figure 5 using the new design of the reward history variable. Test 5 and the versions with theta = 0.95 and 1 are shown in the same table.
+
+```{r fe_rew95, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+filepath <- '../data/data_full.csv'
+data <- read.csv(filepath)
+
+theta_fun <- function() {
+  return(0.95)
+}
+
+source("./feature_engineering.R", local = knit_global())
+
+# Save engineered data
+write.csv(data, file = '../data/data_reduced_095.csv', row.names = FALSE)
+```
+
+```{r fe_rew100, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+filepath <- '../data/data_full.csv'
+data <- read.csv(filepath)
+
+theta_fun <- function() {
+  return(1)
+}
+
+source("./feature_engineering.R", local = knit_global())
+
+# Save engineered data
+write.csv(data, file = '../data/data_reduced_100.csv', row.names = FALSE)
+```
+
+```{r load_rew_95, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+filepath <- '../data/data_reduced_095.csv'
+data <- read.csv(filepath)
+```
+
+```{r rew_log_5_95, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_5 <- data %>%
+  filter(block_type == "C" & craver_2 == 1 & yellow_order_ctrl == 0) %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reward_history = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_5_95 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                       age + gender + major + reaction_time +
+                      sequence_number + reward_history + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+s_5_95 <- glmer_report(log_mod_5_95)
+```
+
+```{r rew_data_95, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_plot_y <- data %>%
+  filter(block_type == 'C' & craver_2 == 1) %>%
+  mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
+         exp_num = cut_interval(exposure_time, 3)) %>%
+  group_by(exp_bins, id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  group_by(exp_bins) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
+  ungroup
+
+data_plot_b <- data %>%
+  filter(block_type == 'S' & craver_2 == 1) %>%
+  mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
+         exp_num = cut_interval(exposure_time, 3)) %>%
+  group_by(exp_bins, id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  filter(betting_rate > .6) %>%
+  group_by(exp_bins) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
+  ungroup
+
+data_plot_95 <- data_plot_b %>%
+  rbind(data_plot_y) %>%
+  mutate(session_color = rep(c('Blue', 'Yellow'),
+                             times = c(nrow(data_plot_b),
+                                       nrow(data_plot_y))),
+         session_color = factor(session_color,
+                                levels = c('Blue', 'Yellow'),
+                                labels = c("(A) Blue", "(B) Yellow")))
+```
+
+```{r load_rew_100, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+filepath <- '../data/data_reduced_100.csv'
+data <- read.csv(filepath)
+```
+
+```{r rew_log_5_100, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_5 <- data %>%
+  filter(block_type == "C" & craver_2 == 1 & yellow_order_ctrl == 0) %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reward_history = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_5_100 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                       age + gender + major + reaction_time +
+                      sequence_number + reward_history + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+s_5_100 <- glmer_report(log_mod_5_100)
+```
+
+```{r rew_data_100, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_plot_y <- data %>%
+  filter(block_type == 'C' & craver_2 == 1) %>%
+  mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
+         exp_num = cut_interval(exposure_time, 3)) %>%
+  group_by(exp_bins, id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  group_by(exp_bins) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
+  ungroup
+
+data_plot_b <- data %>%
+  filter(block_type == 'S' & craver_2 == 1) %>%
+  mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
+         exp_num = cut_interval(exposure_time, 3)) %>%
+  group_by(exp_bins, id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  filter(betting_rate > .6) %>%
+  group_by(exp_bins) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
+  ungroup
+
+data_plot_100 <- data_plot_b %>%
+  rbind(data_plot_y) %>%
+  mutate(session_color = rep(c('Blue', 'Yellow'),
+                             times = c(nrow(data_plot_b),
+                                       nrow(data_plot_y))),
+         session_color = factor(session_color,
+                                levels = c('Blue', 'Yellow'),
+                                labels = c("(A) Blue", "(B) Yellow")))
+```
+
+```{r log_mod_5_rew_combine, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+colnames(s_5) <- c('Variable', '(1)')
+colnames(s_5_95) <- c('Variable', '(2)')
+colnames(s_5_100) <- c('Variable', '(3)')
+
+s_5_rew_out <- s_5 %>%
+  left_join(s_5_95) %>%
+  left_join(s_5_100)
+```
+
+## Test 5 copy
+
+```{r log_mod_5_rew_out, echo=FALSE}
+kable(s_5_rew_out, format = "latex", align = 'c',
+      caption = 'Three versions of test 5 with different values of theta. Model 1 is the original version with theta = 0.90. Model 2 has theta 0.95 and model 3 has theta 1.00.') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001")
+```
+
+```{r rew_plot_95, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the blue background sessions (A) and yellow background sessions (B) as a function of prior reward history (as defined in computational model) for cravers in all sessions, with reward history split into 3 equally sized bins. In this plot, theta is 0.95.'}
+ggplot(data_plot_95, aes(x = exp_bins,
+                      y = betting_rate,
+                      col = session_color)) +
+  geom_line() +
+  geom_errorbar(aes(ymin = betting_rate - se,
+                    ymax = betting_rate + se),
+                width = 0.2) +
+  labs(x = 'Previous reward history', y = 'Betting rate') +
+  scale_x_continuous(breaks = 1:3) +
+  scale_color_manual(name = 'Session color',
+                     breaks = c('(A) Blue', '(B) Yellow'),
+                     values = c('#0057b7', '#ffd700')) +
+  theme_minimal() +
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        strip.text = element_text(size = 14),
+        legend.position = 'none') +
+  facet_wrap('session_color', scales = 'free_y')
+```
+
+```{r rew_plot_100, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the blue background sessions (A) and yellow background sessions (B) as a function of prior reward history (as defined in computational model) for cravers in all sessions, with reward history split into 3 equally sized bins. In this plot, theta is 1.00.'}
+ggplot(data_plot_100, aes(x = exp_bins,
+                      y = betting_rate,
+                      col = session_color)) +
+  geom_line() +
+  geom_errorbar(aes(ymin = betting_rate - se,
+                    ymax = betting_rate + se),
+                width = 0.2) +
+  labs(x = 'Previous reward history', y = 'Betting rate') +
+  scale_x_continuous(breaks = 1:3) +
+  scale_color_manual(name = 'Session color',
+                     breaks = c('(A) Blue', '(B) Yellow'),
+                     values = c('#0057b7', '#ffd700')) +
+  theme_minimal() +
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        strip.text = element_text(size = 14),
+        legend.position = 'none') +
+  facet_wrap('session_color', scales = 'free_y')
+```
+
+```{r load data again, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+filepath <- '../data/data_reduced.csv'
+data <- read.csv(filepath)
+```
+
+\newpage
+
+# Controlling for losses
+
+We wanted to see if there was a correlation between the losses people accrued and the betting rate in yellow background sessions. This was meant to represent whether people learned from their mistakes. This was done in a few steps.
+
+First, we checked overall betting rates in yellow over the 6 sequences for control and test. This was simply to see betting over the course of the experiment in general, as a baseline.
+
+Next, we checked two different variables, both related to losses. First, we checked betting rate as a function of cumulative losses (in yellow only). Then, we checked betting rate as a function of cumulative losses in yellow but dividing by the cumulative bets in yellow. In this way, a participant who bets a lot in yellow but luckily does not lose a lot, will have a lower “loss score”.
+
+Finally, we plot betting rates in yellow each sequence for participants who with low, medium and high losses in the first sequence. This is meant to show whether high losses in the beginning of the experiment result in different betting patterns throughout.
+
+These four checks are presented in the figures below. We importantly only used cravers for this analysis as others did not bet in yellow more than once.
+
+```{r loss_data_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_plot <- data %>%
+  filter(craver_2 == 1 & block_type == 'C') %>%
+  group_by(id, treatment, sequence_number) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  group_by(treatment, sequence_number) %>%
+  summarize(mean = mean(betting_rate),
+            se = se(betting_rate)) %>%
+  ungroup
+```
+
+```{r loss_plot_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in yellow as a function of sequence number in test and control. Error bars are SEM.'}
+ggplot(data_plot, aes(x = sequence_number, y = mean, color = treatment)) +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
+                width = 0.2) +
+  labs(x = 'Sequence number', y = 'Mean betting rate (yellow)') +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 14),
+        axis.title = element_text(size = 16))
+```
+
+```{r loss_data_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_plot <- data %>%
+  mutate(losses = if_else(outcome < 0 & block_type == 'C', outcome, 0)) %>%
+  group_by(id) %>%
+  mutate(losses = cumsum(-losses)) %>%
+  ungroup %>%
+  mutate(loss_bins = as.numeric(cut_interval(losses, 5))) %>%
+  filter(craver_2 == 1 & block_type == 'C') %>%
+  group_by(id, treatment, loss_bins) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  group_by(treatment, loss_bins) %>%
+  summarize(mean = mean(betting_rate),
+            se = se(betting_rate)) %>%
+  ungroup %>%
+  drop_na
+```
+
+```{r loss_plot_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in yellow by cumulative losses (in 5 bins) for test and control. Error bars are SEM.'}
+ggplot(data_plot, aes(x = loss_bins, y = mean, color = treatment)) +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
+                width = 0.2) +
+  labs(x = 'Cumulative losses (5 bins) in yellow',
+       y = 'Mean betting rate (yellow)') +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 14),
+        axis.title = element_text(size = 16))
+```
+
+```{r loss_data_3, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_plot <- data %>%
+  mutate(losses = if_else(outcome < 0 & block_type == 'C', outcome, 0),
+         bets_in_y = if_else(choice == 1 & block_type == 'C', 1, 0)) %>%
+  group_by(id) %>%
+  mutate(losses = cumsum(-losses),
+         bets_in_y = cumsum(bets_in_y),
+         losses_by_bets = losses/bets_in_y) %>%
+  ungroup %>%
+  mutate(loss_bins = as.numeric(cut_interval(losses_by_bets, 5))) %>%
+  filter(craver_2 == 1 & block_type == 'C') %>%
+  group_by(id, treatment, loss_bins) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  group_by(treatment, loss_bins) %>%
+  summarize(mean = mean(betting_rate),
+            se = se(betting_rate)) %>%
+  ungroup %>%
+  drop_na
+```
+
+```{r loss_plot_3, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate by 5 bins representing cumulative losses over cumulative bets. Error bars are SEM.'}
+ggplot(data_plot, aes(x = loss_bins, y = mean, color = treatment)) +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
+                width = 0.2) +
+  labs(x = 'Cumulative losses by bets (5 bins)',
+       y = 'Mean betting rate (yellow)') +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 14),
+        axis.title = element_text(size = 16))
+```
+
+```{r loss_data_4, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_plot <- data %>%
+  mutate(losses = if_else(outcome < 0 &
+                            block_type == 'C' &
+                            sequence_number %in% c(1),
+                          outcome, 0)) %>%
+  filter(craver_2 == 1 & block_type == 'C') %>%
+  group_by(id, treatment) %>%
+  mutate(losses = sum(-losses)) %>%
+  ungroup %>%
+  mutate(loss_bins = as.numeric(cut_interval(losses, 3))) %>%
+  group_by(id, sequence_number, treatment, loss_bins) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  group_by(sequence_number, treatment, loss_bins) %>%
+  summarize(mean = mean(betting_rate),
+            se = se(betting_rate)) %>%
+  ungroup %>%
+  drop_na
+```
+
+```{r loss_plot_4, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in yellow by sequence number. The plot is separated in 3 increasing panes with low (1), medium (2), and high (3) losses in the first sequence.'}
+ggplot(data_plot, aes(x = sequence_number, y = mean, color = treatment)) +
+  geom_line() +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
+                width = 0.2) +
+  labs(x = 'Sequence number',
+       y = 'Mean betting rate (yellow)') +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 14),
+        axis.title = element_text(size = 16)) +
+  facet_wrap('loss_bins')
+```
+
+Next, we include a new variable in test 5. We introduce cumulative losses to the model and remove the reward history variable (due to colinearity).
+
+To see if the effect differs by treatment, we also include the interaction between treatment and the loss variable.
+
+The interaction is negative, meaning that the effect of accrued losses on betting is lower in the test treatment compared to the control treatment. In other words, participants overall bet more if they have lost more, but this is more pronounced in the control treatment.
+
+
+```{r log_loss_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_5 <- data %>%
+  mutate(losses = if_else(outcome < 0, outcome, 0)) %>%
+  group_by(id) %>%
+  mutate(losses = cumsum(-losses)) %>%
+  ungroup %>%
+  filter(block_type == "C" & craver_2 == 1) %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age)[,1],
+         gender = factor(gender),
+         major = factor(major),
+         losses = scale(losses)[,1],
+         reaction_time = scale(reaction_time)[,1],
+         sequence_number = scale(sequence_number)[,1])
+
+log_mod_5_loss <- bglmer(choice ~ reward_value + uncertainty +
+                           treatment + age + gender + major +
+                           losses * treatment + reaction_time +
+                           sequence_number + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+s_5_loss <- glmer_report(log_mod_5_loss)
+```
+
+## Test 5 - first and second in sequence only
+
+```{r log_loss_5_out, echo=FALSE}
+kable(s_loss_5, format = "latex", align = 'c') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001")
+```
+
+\newpage
+
+# First 4 sessions of blue in test/control
+
+We checked the difference in betting rates in the first 4 blue sessions in the test and control treatment separately. This is shown in a bar chart below as well as a t-test checking the difference in betting rates between test and control. Only the first “actual” blue sessions are used. Interspersed sessions and clocks before the experiment (to avoid boredom) were not used.
+
+```{r blue_data, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# Betting in first 4 blue sessions test/ctrl
+data_plot <- data %>%
+  mutate(first_blue = if_else(treatment == 'control' &
+                                block_type == 'S' &
+                                block_number %in% 6:9, 1,
+                              if_else(treatment == 'test' &
+                                        block_type == 'S' &
+                                        block_number %in% 1:4, 1, 0))) %>%
+  filter(first_blue == 1) %>%
+  group_by(id, treatment) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  group_by(treatment) %>%
+  summarize(mean = mean(betting_rate),
+            se = se(betting_rate)) %>%
+  ungroup
+```
+
+```{r blue_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Average betting rates in the first 4 blue sessions for the control and test treatment. Error bars show SEM.'}
+ggplot(data_plot, aes(x = treatment, y = mean)) +
+  geom_bar(stat = 'identity', fill = '#0057b7', width = 0.7) +
+  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
+                width = 0.2) +
+  labs(x = 'Treatment', y = 'Mean betting rate') +
+  theme_minimal() +
+  theme(axis.text = element_text(size = 14),
+        axis.title = element_text(size = 16))
+```
+
+```{r blue t-test, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_ttest <- data %>%
+  mutate(first_blue = if_else(treatment == 'control' &
+                                block_type == 'S' &
+                                block_number %in% 6:9, 1,
+                              if_else(treatment == 'test' &
+                                        block_type == 'S' &
+                                        block_number %in% 1:4, 1, 0))) %>%
+  filter(first_blue == 1) %>%
+  group_by(id, treatment) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup
+
+
+blue_t_test <- t.test(betting_rate ~ treatment, data = data_ttest,
+                      var.equal=TRUE)
+
+blue_t_test <- t_test_report(blue_t_test)
+```
+
+A two-sample t-test comparing the difference in betting rates in the first 4 blue sessions found no difference in mean between the two treatments (Welch two-sample t-test, `r blue_t_test`).
+
+\newpage
+
+# Appendix
+
 ```{r fe_new, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 filepath <- '../data/november_subset/data_full.csv'
 data <- read.csv(filepath)
+
+theta_fun <- function() {
+  return(0.9)
+}
 
 source("./feature_engineering.R", local = knit_global())
 
@@ -854,13 +1377,17 @@ data <- read.csv(filepath)
 n_new <- length(unique(data$id))
 ```
 
-# Treatment effect in new sample only
+## Treatment effect in new sample only
 
 We also test the treatment effect in yellow in the new sample when we exclude all pilot participants. This subsample has `r n_new` participants.
 
 The treatment effect is examined by running test 5 and producing figure 2 for the new sample alone.
 
-```{r new_log_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+### Test 5
+
+Logistic mixed-effects model predicting betting among cravers in the yellow background sessions. Three models are shown. The first model uses all available data. The second model uses data only from the first yellow session in an order of yellow sessions for the control treatment. The third model uses data only from the first and second yellow session in an order of yellow sessions for the control treatment. The models can not be compared on AIC, BIC or with a chi-squared test as they are not using the same data.
+
+```{r log_mod_5_new, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_5 <- data %>%
   filter(block_type == "C" & craver_2 == 1) %>%
   mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
@@ -872,21 +1399,144 @@ data_5 <- data %>%
          age = scale(age),
          gender = factor(gender),
          major = factor(major),
-         reaction_time = scale(reaction_time))
+         reward_history = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
 
-log_mod_new_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      previous_choice + age + gender +
-                      major + (1 | id),
+log_mod_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                      age + gender + major + reaction_time +
+                      sequence_number + reward_history + (1 | id),
                     data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
-s_new_5 <- glmer_report(log_mod_new_5)
+s_5 <- glmer_report(log_mod_5)
 ```
 
-## Test 5 copy
+```{r log_1_5_new, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# Set order of yellow blocks (first included)
+data$yellow_order_ctrl <- 0
+for(id in unique(data$id[data$treatment == 'control'])) {
+  for(seq in unique(data$sequence_number[data$id == id])) {
+    indicator <- data$blue_interspersed[
+      data$sequence_number == seq & data$id == id
+    ][1]
+    
+    if(indicator == 2) {
+      data$yellow_order_ctrl[
+        data$sequence_number == seq &
+          data$id == id &
+          data$block_type == 'C' &
+          data$block_number %in% c(4, 5)
+      ] <- 1
+    } else if(indicator == 3) {
+      data$yellow_order_ctrl[
+        data$sequence_number == seq &
+          data$id == id &
+          data$block_type == 'C' &
+          data$block_number %in% c(2, 5)
+      ] <- 1
+    } else if(indicator == 4) {
+      data$yellow_order_ctrl[
+        data$sequence_number == seq &
+          data$id == id &
+          data$block_type == 'C' &
+          data$block_number %in% c(2, 3)
+      ] <- 1
+    }
+    
+  }
+}
 
-```{r new_log_5_out, echo=FALSE}
-kable(s_new_5, format = "latex", align = 'c')
+data_5 <- data %>%
+  filter(block_type == "C" & craver_2 == 1 & yellow_order_ctrl == 0) %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reward_history = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_1_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                      age + gender + major + reaction_time +
+                      sequence_number + reward_history + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+s_1_5 <- glmer_report(log_mod_1_5)
+```
+
+```{r log_12_5_new, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# Set order of yellow blocks (first/second included)
+data$yellow_order_ctrl <- 0
+for(id in unique(data$id[data$treatment == 'control'])) {
+  for(seq in unique(data$sequence_number[data$id == id])) {
+    indicator <- data$blue_interspersed[
+      data$sequence_number == seq & data$id == id
+    ][1]
+
+    if(indicator == 2) {
+      data$yellow_order_ctrl[
+        data$sequence_number == seq &
+          data$id == id &
+          data$block_type == 'C' &
+          data$block_number == 5
+      ] <- 1
+    } else if(indicator == 4) {
+      data$yellow_order_ctrl[
+        data$sequence_number == seq &
+          data$id == id &
+          data$block_type == 'C' &
+          data$block_number == 3
+      ] <- 1
+    }
+    
+  }
+}
+
+data_5 <- data %>%
+  filter(block_type == "C" & craver_2 == 1 & yellow_order_ctrl == 0) %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reward_history = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_12_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                       age + gender + major + reaction_time +
+                      sequence_number + reward_history + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+s_12_5 <- glmer_report(log_mod_12_5)
+```
+
+```{r log_mod_5_combine_new, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+colnames(s_5) <- c('Variable', '(1)')
+colnames(s_1_5) <- c('Variable', '(2)')
+colnames(s_12_5) <- c('Variable', '(3)')
+
+s_5_out <- s_5 %>%
+  left_join(s_1_5) %>%
+  left_join(s_12_5)
+```
+
+```{r log_mod_5_new_out, echo=FALSE}
+kable(s_5_out, format = "latex", align = 'c',
+      caption = 'Three versions of test 5 on different subsets of data. Model 1 uses all available data. Model 2 uses only the first yellow session in an order in control. Model 3 uses only the first and second yellow session in an order in control.') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001")
 ```
 
 ```{r new_treat_col_data, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
@@ -941,173 +1591,18 @@ ggplot(data_plot, aes(x = treatment,
         legend.text = element_text(size = 12))
 ```
 
-\newpage
-
-# Reward history with different theta
-
-This section checks results for the reward history variable when using theta = 0.95 instead of 0.9. This is done by reproducing test 3 and 5 as well as figure 5 using the new design of the reward history variable. In the copy of model 5, previous choice is removed as it correlates heavily with reward history.
-
-```{r fe_rew, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-filepath <- '../data/data_full.csv'
-data <- read.csv(filepath)
-
-source("./feature_engineering_rew.R", local = knit_global())
-
-# Save engineered data
-write.csv(data, file = '../data/data_reduced_rew.csv', row.names = FALSE)
-```
-
-```{r load_rew, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-filepath <- '../data/data_reduced_rew.csv'
-data <- read.csv(filepath)
-```
-
-```{r rew_log_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_5 <- data %>%
-  filter(block_type == "C" & craver_2 == 1) %>%
-  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
-                               labels = c("Low", "High")),
-         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
-                              labels = c("Low", "High")),
-         treatment = factor(treatment, levels = c("control", "test"),
-                            labels = c("Control", "Test")),
-         age = scale(age),
-         gender = factor(gender),
-         major = factor(major),
-         reward_history = scale(exposure_time))
-
-log_mod_new_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      age + gender +
-                      major + reward_history + (1 | id),
-                    data = data_5, fixef.prior = t,
-                    family = binomial(link = "logit"))
-
-s_new_5 <- glmer_report(log_mod_new_5)
-```
-
-## Test 5 copy
-
-```{r rew_log_5_out, echo=FALSE}
-kable(s_new_5, format = "latex", align = 'c')
-```
-
-## Test 3
-
-Mixed-effects model predicting betting in all trials. Same as test 2, but with reward history added in order to see if betting increases with reward histoty
-
-```{r log_mod_3_rew, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_2 <- data %>%
-  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
-                               labels = c("Low", "High")),
-         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
-                              labels = c("Low", "High")),
-         treatment = factor(treatment, levels = c("control", "test"),
-                            labels = c("Control", "Test")),
-         color = factor(block_type, levels = c("C", "S"),
-                        labels = c("Yellow", "Blue")),
-         age = scale(age),
-         gender = factor(gender),
-         major = factor(major),
-         reward_history = scale(exposure_time))
-
-log_mod_3 <- bglmer(choice ~ reward_value + uncertainty +
-                      treatment * color +
-                      age + gender + major + reward_history + (1 | id),
-                    data = data_2, fixef.prior = t,
-                    family = binomial(link = "logit"))
-
-s_3 <- glmer_report(log_mod_3)
-```
-
-```{r log_mod_3_rew_out, echo=FALSE}
-kable(s_3, format = "latex", align = 'c')
-```
-
-```{r rew_data, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_plot_y <- data %>%
-  filter(block_type == 'C') %>%
-  mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
-         exp_num = cut_interval(exposure_time, 3)) %>%
-  group_by(exp_bins, craver_2, id) %>%
-  summarize(betting_rate = mean(choice)) %>%
-  ungroup %>%
-  group_by(exp_bins) %>%
-  summarize(se = se(betting_rate),
-            betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
-  ungroup
-
-data_plot_b <- data %>%
-  filter(block_type == 'S') %>%
-  mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
-         exp_num = cut_interval(exposure_time, 3)) %>%
-  group_by(exp_bins, craver_2, id) %>%
-  summarize(betting_rate = mean(choice)) %>%
-  ungroup %>%
-  filter(betting_rate > .6) %>%
-  group_by(exp_bins) %>%
-  summarize(se = se(betting_rate),
-            betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
-  ungroup
-
-data_plot <- data_plot_b %>%
-  rbind(data_plot_y) %>%
-  mutate(session_color = rep(c('Blue', 'Yellow'),
-                             times = c(nrow(data_plot_b),
-                                       nrow(data_plot_y))),
-         session_color = factor(session_color,
-                                levels = c('Blue', 'Yellow'),
-                                labels = c("(A) Blue", "(B) Yellow")))
-```
-
-```{r rew_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the blue background sessions (A) and yellow background sessions (B) as a function of prior reward history (as defined in computational model) for all participants and sessions, with reward history split into 3 equally sized bins.'}
-ggplot(data_plot, aes(x = exp_bins,
-                      y = betting_rate,
-                      col = session_color)) +
-  geom_line() +
-  geom_errorbar(aes(ymin = betting_rate - se,
-                    ymax = betting_rate + se),
-                width = 0.2) +
-  labs(x = 'Previous reward history', y = 'Betting rate') +
-  scale_x_continuous(breaks = 1:3) +
-  scale_color_manual(name = 'Session color',
-                     breaks = c('(A) Blue', '(B) Yellow'),
-                     values = c('#0057b7', '#ffd700')) +
-  theme_minimal() +
-  theme(axis.title = element_text(size = 14),
-        axis.text = element_text(size = 12),
-        strip.text = element_text(size = 14),
-        legend.position = 'none') +
-  facet_wrap('session_color', scales = 'free_y')
-```
-
-```{r load data again, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+```{r load_data_after_new, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 filepath <- '../data/data_reduced.csv'
-data <- read.csv(filepath)
+data <- read.csv(filepath, row.names = FALSE)
 ```
 
-\newpage
-
-# Boredom in control in yellow
+## Boredom in control in yellow
 
 We wanted to check whether participants might bet in yellow in the control treatment out of boredom (skipping many times in a row could be boring as nothing happens). To do this, we fashioned a few extra variables and checked their importance in explaining differences in betting rates.
 
 First, we produced two additional plots to check whether betting was different over the course of sessions in yellow in control. One variable compared the first session in a sequence of yellow to the second and third, and one variable compared the first and second session to the third in a sequence. The results are shown in the bar charts below.
 
 ```{r boredom_data_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-# Make indicator of where blue interspersed block is
-data <- data %>%
-  group_by(sequence_number, id) %>%
-  mutate(blue_interspersed =
-           if_else(block_type == 'S' & block_number == 2, 2,
-                   if_else(block_type == 'S' & block_number == 3, 3, 
-                           if_else(block_type == 'S' & block_number == 4, 4, 1)))) %>%
-  ungroup %>%
-  mutate(blue_interspersed = replace(blue_interspersed, blue_interspersed == 1, NA)) %>%
-  group_by(sequence_number, id) %>%
-  mutate(blue_interspersed = mean(blue_interspersed, na.rm = TRUE)) %>%
-  ungroup %>%
-  mutate(blue_interspersed = if_else(treatment == 'test', 1, blue_interspersed))
-
 # Set order of yellow blocks (first/second == 1 in sequence)
 data$yellow_order_ctrl <- 0
 for(id in unique(data$id[data$treatment == 'control'])) {
@@ -1248,271 +1743,100 @@ ggplot(data_plot, aes(x = group, y = mean)) +
         axis.text = element_text(size = 14))
 ```
 
-Next, a special version of test 5 in the main analysis above was run. We created two version of the same model. One restricting sessions in the control treatment to the first session in a sequence and one restricting sessions in control to the first/second sessions. This was done to avoid overcomplicating model architecture with additional variables and interactions. It also creates models with the assumption that all data is “free from boredom” rather than controlling for it. Regression tables are presented below.
+## Stepwise model building process
 
-```{r log_1_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-# Set order of yellow blocks (first included)
-data$yellow_order_ctrl <- 0
-for(id in unique(data$id[data$treatment == 'control'])) {
-  for(seq in unique(data$sequence_number[data$id == id])) {
-    indicator <- data$blue_interspersed[
-      data$sequence_number == seq & data$id == id
-    ][1]
-    
-    if(indicator == 2) {
-      data$yellow_order_ctrl[
-        data$sequence_number == seq &
-          data$id == id &
-          data$block_type == 'C' &
-          data$block_number %in% c(4, 5)
-      ] <- 1
-    } else if(indicator == 3) {
-      data$yellow_order_ctrl[
-        data$sequence_number == seq &
-          data$id == id &
-          data$block_type == 'C' &
-          data$block_number %in% c(2, 5)
-      ] <- 1
-    } else if(indicator == 4) {
-      data$yellow_order_ctrl[
-        data$sequence_number == seq &
-          data$id == id &
-          data$block_type == 'C' &
-          data$block_number %in% c(2, 3)
-      ] <- 1
-    }
-    
-  }
-}
+This section shows the process of building the models from the theoretical version (in preregistration) to the model shown in the report. Models are built with incrementally more variables and each model is compared using AIC and BIC.
 
-data_5 <- data %>%
-  filter(block_type == "C" & craver_2 == 1 & yellow_order_ctrl == 0) %>%
+### Test 3 model (includes test 2)
+
+```{r log_mod_3_step_build, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_2 <- data %>%
   mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
                                labels = c("Low", "High")),
          uncertainty = factor(aaron_mood, levels = c("Low", "High"),
                               labels = c("Low", "High")),
          treatment = factor(treatment, levels = c("control", "test"),
                             labels = c("Control", "Test")),
+         color = factor(block_type, levels = c("C", "S"),
+                        labels = c("Yellow", "Blue")),
          age = scale(age),
          gender = factor(gender),
-         major = factor(major))
+         major = factor(major),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
 
-log_mod_1_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      previous_choice + age + gender +
-                      major + (1 | id),
-                    data = data_5, fixef.prior = t,
+log_mod_3_1 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major +
+                        (1 | id),
+                    fixef.prior = t, data = data_2,
                     family = binomial(link = "logit"))
 
-s_1_5 <- glmer_report(log_mod_1_5)
-```
-
-## Test 5 - first in sequence only
-
-```{r log_1_5_out, echo=FALSE}
-kable(s_1_5, format = "latex", align = 'c')
-```
-
-```{r log_12_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-# Set order of yellow blocks (first/second included)
-data$yellow_order_ctrl <- 0
-for(id in unique(data$id[data$treatment == 'control'])) {
-  for(seq in unique(data$sequence_number[data$id == id])) {
-    indicator <- data$blue_interspersed[
-      data$sequence_number == seq & data$id == id
-    ][1]
-
-    if(indicator == 2) {
-      data$yellow_order_ctrl[
-        data$sequence_number == seq &
-          data$id == id &
-          data$block_type == 'C' &
-          data$block_number == 5
-      ] <- 1
-    } else if(indicator == 4) {
-      data$yellow_order_ctrl[
-        data$sequence_number == seq &
-          data$id == id &
-          data$block_type == 'C' &
-          data$block_number == 3
-      ] <- 1
-    }
-    
-  }
-}
-
-data_5 <- data %>%
-  filter(block_type == "C" & craver_2 == 1 & yellow_order_ctrl == 0) %>%
-  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
-                               labels = c("Low", "High")),
-         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
-                              labels = c("Low", "High")),
-         treatment = factor(treatment, levels = c("control", "test"),
-                            labels = c("Control", "Test")),
-         age = scale(age),
-         gender = factor(gender),
-         major = factor(major))
-
-log_mod_12_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      previous_choice + age + gender +
-                      major + (1 | id),
-                    data = data_5, fixef.prior = t,
+log_mod_3_2 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major +
+                        reaction_time + (1 | id),
+                    fixef.prior = t, data = data_2,
                     family = binomial(link = "logit"))
 
-s_12_5 <- glmer_report(log_mod_12_5)
+log_mod_3_3 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major +
+                        reaction_time + sequence_number + (1 | id),
+                    fixef.prior = t, data = data_2,
+                    family = binomial(link = "logit"))
+
+log_mod_3_4 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major +
+                        reaction_time + sequence_number +
+                        previous_choice + (1 | id),
+                    fixef.prior = t, data = data_2,
+                    family = binomial(link = "logit"))
+
+s_3_1 <- glmer_report(log_mod_3_1)
+s_3_2 <- glmer_report(log_mod_3_2)
+s_3_3 <- glmer_report(log_mod_3_3)
+s_3_4 <- glmer_report(log_mod_3_4)
 ```
 
-## Test 5 - first and second in sequence only
+```{r log_mod_3_step_combine, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+colnames(s_3_1) <- c('Variable', '(1)')
+colnames(s_3_2) <- c('Variable', '(2)')
+colnames(s_3_3) <- c('Variable', '(3)')
+colnames(s_3_4) <- c('Variable', '(4)')
 
-```{r log_12_5_out, echo=FALSE}
-kable(s_12_5, format = "latex", align = 'c')
+aic_3_S <- round(AIC(log_mod_3_1,
+                     log_mod_3_2,
+                     log_mod_3_3,
+                     log_mod_3_4), 0)
+aic_3_s <- c('AIC', as.character(aic_3_S$AIC))
+bic_3_S <- round(BIC(log_mod_3_1,
+                     log_mod_3_2,
+                     log_mod_3_3,
+                     log_mod_3_4), 0)
+bic_3_s <- c('BIC', as.character(bic_3_S$BIC))
+
+s_3_step <- s_3_1 %>%
+  right_join(s_3_2) %>%
+  right_join(s_3_3) %>%
+  right_join(s_3_4) %>%
+  replace_na(list('Variable' = '-',
+                  '(1)' = '-',
+                  '(2)' = '-',
+                  '(3)' = '-',
+                  '(4)' = '-')) %>%
+  rbind(rep('-', 5)) %>%
+  rbind(aic_3_s) %>%
+  rbind(bic_3_s)
 ```
 
-\newpage
-
-# Controlling for losses
-
-We wanted to see if there was a correlation between the losses people accrued and the betting rate in yellow background sessions. This was meant to represent whether people learned from their mistakes. This was done in a few steps.
-
-First, we checked overall betting rates in yellow over the 6 sequences for control and test. This was simply to see betting over the course of the experiment in general, as a baseline.
-
-Next, we checked two different variables, both related to losses. First, we checked betting rate as a function of cumulative losses (in yellow only). Then, we checked betting rate as a function of cumulative losses in yellow but dividing by the cumulative bets in yellow. In this way, a participant who bets a lot in yellow but luckily does not lose a lot, will have a lower “loss score”.
-
-Finally, we plot betting rates in yellow each sequence for participants who with low, medium and high losses in the first sequence. This is meant to show whether high losses in the beginning of the experiment result in different betting patterns throughout.
-
-These four checks are presented in the figures below. We importantly only used cravers for this analysis as others did not bet in yellow more than once.
-
-```{r loss_data_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_plot <- data %>%
-  filter(craver_2 == 1 & block_type == 'C') %>%
-  group_by(id, treatment, sequence_number) %>%
-  summarize(betting_rate = mean(choice)) %>%
-  group_by(treatment, sequence_number) %>%
-  summarize(mean = mean(betting_rate),
-            se = se(betting_rate)) %>%
-  ungroup
+```{r log_mod_3_step_out, echo=FALSE}
+kable(s_3_step, format = "latex", align = 'c',
+      caption = 'Stepwise comparison of models being built from theoretical base (1) to best fitting model (4). Noteworthy is that model (3) is the model from test 2.') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001")
 ```
 
-```{r loss_plot_1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in yellow as a function of sequence number in test and control. Error bars are SEM.'}
-ggplot(data_plot, aes(x = sequence_number, y = mean, color = treatment)) +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
-                width = 0.2) +
-  labs(x = 'Sequence number', y = 'Mean betting rate (yellow)') +
-  theme_minimal() +
-  theme(axis.text = element_text(size = 14),
-        axis.title = element_text(size = 16))
-```
+## Test 5 model
 
-```{r loss_data_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_plot <- data %>%
-  mutate(losses = if_else(outcome < 0 & block_type == 'C', outcome, 0)) %>%
-  group_by(id) %>%
-  mutate(losses = cumsum(-losses)) %>%
-  ungroup %>%
-  mutate(loss_bins = as.numeric(cut_interval(losses, 5))) %>%
-  filter(craver_2 == 1 & block_type == 'C') %>%
-  group_by(id, treatment, loss_bins) %>%
-  summarize(betting_rate = mean(choice)) %>%
-  group_by(treatment, loss_bins) %>%
-  summarize(mean = mean(betting_rate),
-            se = se(betting_rate)) %>%
-  ungroup %>%
-  drop_na
-```
-
-```{r loss_plot_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in yellow by cumulative losses (in 5 bins) for test and control. Error bars are SEM.'}
-ggplot(data_plot, aes(x = loss_bins, y = mean, color = treatment)) +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
-                width = 0.2) +
-  labs(x = 'Cumulative losses (5 bins) in yellow',
-       y = 'Mean betting rate (yellow)') +
-  theme_minimal() +
-  theme(axis.text = element_text(size = 14),
-        axis.title = element_text(size = 16))
-```
-
-```{r loss_data_3, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_plot <- data %>%
-  mutate(losses = if_else(outcome < 0 & block_type == 'C', outcome, 0),
-         bets_in_y = if_else(choice == 1 & block_type == 'C', 1, 0)) %>%
-  group_by(id) %>%
-  mutate(losses = cumsum(-losses),
-         bets_in_y = cumsum(bets_in_y),
-         losses_by_bets = losses/bets_in_y) %>%
-  ungroup %>%
-  mutate(loss_bins = as.numeric(cut_interval(losses_by_bets, 5))) %>%
-  filter(craver_2 == 1 & block_type == 'C') %>%
-  group_by(id, treatment, loss_bins) %>%
-  summarize(betting_rate = mean(choice)) %>%
-  group_by(treatment, loss_bins) %>%
-  summarize(mean = mean(betting_rate),
-            se = se(betting_rate)) %>%
-  ungroup %>%
-  drop_na
-```
-
-```{r loss_plot_3, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate by 5 bins representing cumulative losses over cumulative bets. Error bars are SEM.'}
-ggplot(data_plot, aes(x = loss_bins, y = mean, color = treatment)) +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
-                width = 0.2) +
-  labs(x = 'Cumulative losses by bets (5 bins)',
-       y = 'Mean betting rate (yellow)') +
-  theme_minimal() +
-  theme(axis.text = element_text(size = 14),
-        axis.title = element_text(size = 16))
-```
-
-```{r loss_data_4, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_plot <- data %>%
-  mutate(losses = if_else(outcome < 0 &
-                            block_type == 'C' &
-                            sequence_number %in% c(1),
-                          outcome, 0)) %>%
-  filter(craver_2 == 1 & block_type == 'C') %>%
-  group_by(id, treatment) %>%
-  mutate(losses = sum(-losses)) %>%
-  ungroup %>%
-  mutate(loss_bins = as.numeric(cut_interval(losses, 3))) %>%
-  group_by(id, sequence_number, treatment, loss_bins) %>%
-  summarize(betting_rate = mean(choice)) %>%
-  group_by(sequence_number, treatment, loss_bins) %>%
-  summarize(mean = mean(betting_rate),
-            se = se(betting_rate)) %>%
-  ungroup %>%
-  drop_na
-```
-
-```{r loss_plot_4, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in yellow by sequence number. The plot is separated in 3 increasing panes with low (1), medium (2), and high (3) losses in the first sequence.'}
-ggplot(data_plot, aes(x = sequence_number, y = mean, color = treatment)) +
-  geom_line() +
-  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
-                width = 0.2) +
-  labs(x = 'Sequence number',
-       y = 'Mean betting rate (yellow)') +
-  theme_minimal() +
-  theme(axis.text = element_text(size = 14),
-        axis.title = element_text(size = 16)) +
-  facet_wrap('loss_bins')
-```
-
-Next, we include the variable from figure 16 in test 5 (without separating into bins), meaning we control for the losses participants accrue given how much they bet. A negative coefficient on the variable would mean that people who face unusually high losses given how much they bet, have lower betting rates in yellow throughout the experiment.
-
-To see if the effect differs by treatment, we also include the interaction between treatment and the loss variable.
-
-The lack of significance for these two variables seem to indicate that the losses accrued given betting rates do not impact betting in yellow.
-
-
-```{r log_loss_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+```{r log_mod_5_step_build, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_5 <- data %>%
-  mutate(losses = if_else(outcome < 0 & block_type == 'C', outcome, 0),
-         bets_in_y = if_else(choice == 1 & block_type == 'C', 1, 0)) %>%
-  group_by(id) %>%
-  mutate(losses = cumsum(-losses),
-         bets_in_y = cumsum(bets_in_y),
-         losses_by_bets = losses/bets_in_y) %>%
-  ungroup %>%
   filter(block_type == "C" & craver_2 == 1) %>%
   mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
                                labels = c("Low", "High")),
@@ -1523,77 +1847,72 @@ data_5 <- data %>%
          age = scale(age),
          gender = factor(gender),
          major = factor(major),
-         losses_by_bets = scale(losses_by_bets))
+         reward_history = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
 
-log_mod_loss_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
-                      previous_choice + age + gender +
-                      major + losses_by_bets * treatment +
-                      (1 | id),
+log_mod_5_1 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                      age + gender + major + (1 | id),
                     data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
-s_loss_5 <- glmer_report(log_mod_loss_5)
+log_mod_5_2 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                      age + gender + major + reaction_time +
+                        (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+log_mod_5_3 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                      age + gender + major + reaction_time +
+                      sequence_number + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+log_mod_5_4 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                      age + gender + major + reaction_time +
+                      sequence_number + reward_history + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+s_5_1 <- glmer_report(log_mod_5_1)
+s_5_2 <- glmer_report(log_mod_5_2)
+s_5_3 <- glmer_report(log_mod_5_3)
+s_5_4 <- glmer_report(log_mod_5_4)
 ```
 
-## Test 5 - first and second in sequence only
+```{r log_mod_5_step_combine, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+colnames(s_5_1) <- c('Variable', '(1)')
+colnames(s_5_2) <- c('Variable', '(2)')
+colnames(s_5_3) <- c('Variable', '(3)')
+colnames(s_5_4) <- c('Variable', '(4)')
 
-```{r log_loss_5_out, echo=FALSE}
-kable(s_loss_5, format = "latex", align = 'c')
+aic_5_S <- round(AIC(log_mod_5_1,
+                     log_mod_5_2,
+                     log_mod_5_3,
+                     log_mod_5_4), 0)
+aic_5_s <- c('AIC', as.character(aic_5_S$AIC))
+bic_5_S <- round(BIC(log_mod_5_1,
+                     log_mod_5_2,
+                     log_mod_5_3,
+                     log_mod_5_4), 0)
+bic_5_s <- c('BIC', as.character(bic_5_S$BIC))
+
+s_5_step <- s_5_1 %>%
+  right_join(s_5_2) %>%
+  right_join(s_5_3) %>%
+  right_join(s_5_4) %>%
+  replace_na(list('Variable' = '-',
+                  '(1)' = '-',
+                  '(2)' = '-',
+                  '(3)' = '-',
+                  '(4)' = '-')) %>%
+  rbind(rep('-', 5)) %>%
+  rbind(aic_5_s) %>%
+  rbind(bic_5_s)
 ```
 
-\newpage
-
-# First 4 sessions of blue in test/control
-
-We checked the difference in betting rates in the first 4 blue sessions in the test and control treatment separately. This is shown in a bar chart below as well as a t-test checking the difference in betting rates between test and control. Only the first “actual” blue sessions are used. Interspersed sessions and clocks before the experiment (to avoid boredom) were not used.
-
-```{r blue_data, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-# Betting in first 4 blue sessions test/ctrl
-data_plot <- data %>%
-  mutate(first_blue = if_else(treatment == 'control' &
-                                block_type == 'S' &
-                                block_number %in% 6:9, 1,
-                              if_else(treatment == 'test' &
-                                        block_type == 'S' &
-                                        block_number %in% 1:4, 1, 0))) %>%
-  filter(first_blue == 1) %>%
-  group_by(id, treatment) %>%
-  summarize(betting_rate = mean(choice)) %>%
-  group_by(treatment) %>%
-  summarize(mean = mean(betting_rate),
-            se = se(betting_rate)) %>%
-  ungroup
+```{r log_mod_5_step_out, echo=FALSE}
+kable(s_5_step, format = "latex", align = 'c',
+      caption = 'Stepwise comparison of models being built from theoretical base (1) to best fitting model (4).') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001")
 ```
-
-```{r blue_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Average betting rates in the first 4 blue sessions for the control and test treatment. Error bars show SEM.'}
-ggplot(data_plot, aes(x = treatment, y = mean)) +
-  geom_bar(stat = 'identity', fill = '#0057b7', width = 0.7) +
-  geom_errorbar(aes(ymin = mean - se, ymax = mean + se),
-                width = 0.2) +
-  labs(x = 'Treatment', y = 'Mean betting rate') +
-  theme_minimal() +
-  theme(axis.text = element_text(size = 14),
-        axis.title = element_text(size = 16))
-```
-
-```{r blue t-test, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_ttest <- data %>%
-  mutate(first_blue = if_else(treatment == 'control' &
-                                block_type == 'S' &
-                                block_number %in% 6:9, 1,
-                              if_else(treatment == 'test' &
-                                        block_type == 'S' &
-                                        block_number %in% 1:4, 1, 0))) %>%
-  filter(first_blue == 1) %>%
-  group_by(id, treatment) %>%
-  summarize(betting_rate = mean(choice)) %>%
-  ungroup
-
-
-blue_t_test <- t.test(betting_rate ~ treatment, data = data_ttest,
-                      var.equal=TRUE)
-
-blue_t_test <- t_test_report(blue_t_test)
-```
-
-A two-sample t-test comparing the difference in betting rates in the first 4 blue sessions found no difference in mean between the two treatments (Welch two-sample t-test, `r blue_t_test`).
