@@ -22,7 +22,7 @@ All excluded participants were cravers, as defined by betting at least twice in 
 \newpage
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, fig.pos = "H", out.extra = "")
+knitr::opts_chunk$set(echo = TRUE, fig.pos = "H")
 ```
 
 ```{r import, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
@@ -35,8 +35,8 @@ suppressMessages({
   library(BayesianFirstAid)
   library(knitr)
   library(MuMIn)
-  library(tinytex)
 })
+suppressWarnings(library(kableExtra))
 
 setwd('C:/Users/samue/Documents/GitHub/craving_by_design/main_analysis')
 
@@ -257,7 +257,8 @@ s_23 <- s_2 %>%
 ```{r log_mod_23_out, echo=FALSE}
 kable(s_23, format = "latex", align = 'c',
       caption = 'Model 1 vs. model 2, with and without the previous choice variable') %>%
-  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001")
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
 ```
 
 Comparing the models, the difference between them was statistically significant (`r aov_3`) suggesting the model with previous choice is the better model.
@@ -417,7 +418,8 @@ s_5_out <- s_5 %>%
 ```{r log_mod_5_out, echo=FALSE}
 kable(s_5_out, format = "latex", align = 'c',
       caption = 'Three versions of test 5 on different subsets of data. Model 1 uses all available data. Model 2 uses only the first yellow session in an order in control. Model 3 uses only the first and second yellow session in an order in control.') %>%
-  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001")
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
 ```
 
 ```{r bayes_6, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
@@ -925,11 +927,11 @@ write.csv(data, file = '../data/data_reduced_100.csv', row.names = FALSE)
 
 ```{r load_rew_95, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 filepath <- '../data/data_reduced_095.csv'
-data <- read.csv(filepath)
+data_95 <- read.csv(filepath)
 ```
 
 ```{r rew_log_5_95, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_5 <- data %>%
+data_5 <- data_95 %>%
   filter(block_type == "C" & craver_2 == 1) %>%
   mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
                                labels = c("Low", "High")),
@@ -954,7 +956,7 @@ s_5_95 <- glmer_report(log_mod_5_95)
 ```
 
 ```{r rew_data_95, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_plot_y <- data %>%
+data_plot_y_95 <- data_95 %>%
   filter(block_type == 'C' & craver_2 == 1) %>%
   mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
          exp_num = cut_interval(exposure_time, 3)) %>%
@@ -966,7 +968,7 @@ data_plot_y <- data %>%
             betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
   ungroup
 
-data_plot_b <- data %>%
+data_plot_b_95 <- data_95 %>%
   filter(block_type == 'S' & craver_2 == 1) %>%
   mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
          exp_num = cut_interval(exposure_time, 3)) %>%
@@ -979,8 +981,8 @@ data_plot_b <- data %>%
             betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
   ungroup
 
-data_plot_95 <- data_plot_b %>%
-  rbind(data_plot_y) %>%
+data_plot_95 <- data_plot_b_95 %>%
+  rbind(data_plot_y_95) %>%
   mutate(session_color = rep(c('Blue', 'Yellow'),
                              times = c(nrow(data_plot_b),
                                        nrow(data_plot_y))),
@@ -991,11 +993,11 @@ data_plot_95 <- data_plot_b %>%
 
 ```{r load_rew_100, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 filepath <- '../data/data_reduced_100.csv'
-data <- read.csv(filepath)
+data_100 <- read.csv(filepath)
 ```
 
 ```{r rew_log_5_100, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_5 <- data %>%
+data_5 <- data_100 %>%
   filter(block_type == "C" & craver_2 == 1) %>%
   mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
                                labels = c("Low", "High")),
@@ -1020,7 +1022,7 @@ s_5_100 <- glmer_report(log_mod_5_100)
 ```
 
 ```{r rew_data_100, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
-data_plot_y <- data %>%
+data_plot_y_100 <- data_100 %>%
   filter(block_type == 'C' & craver_2 == 1) %>%
   mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
          exp_num = cut_interval(exposure_time, 3)) %>%
@@ -1032,7 +1034,7 @@ data_plot_y <- data %>%
             betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
   ungroup
 
-data_plot_b <- data %>%
+data_plot_b_100 <- data_100 %>%
   filter(block_type == 'S' & craver_2 == 1) %>%
   mutate(exp_bins = as.numeric(cut_interval(exposure_time, 3)),
          exp_num = cut_interval(exposure_time, 3)) %>%
@@ -1045,8 +1047,8 @@ data_plot_b <- data %>%
             betting_rate = mean(betting_rate, na.rm = TRUE)) %>%
   ungroup
 
-data_plot_100 <- data_plot_b %>%
-  rbind(data_plot_y) %>%
+data_plot_100 <- data_plot_b_100 %>%
+  rbind(data_plot_y_100) %>%
   mutate(session_color = rep(c('Blue', 'Yellow'),
                              times = c(nrow(data_plot_b),
                                        nrow(data_plot_y))),
@@ -1070,7 +1072,8 @@ s_5_rew_out <- s_5 %>%
 ```{r log_mod_5_rew_out, echo=FALSE}
 kable(s_5_rew_out, format = "latex", align = 'c',
       caption = 'Three versions of test 5 with different values of theta. Model 1 is the original version with theta = 0.90. Model 2 has theta 0.95 and model 3 has theta 1.00.') %>%
-  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001")
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
 ```
 
 ```{r rew_plot_95, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the blue background sessions (A) and yellow background sessions (B) as a function of prior reward history (as defined in computational model) for cravers in all sessions, with reward history split into 3 equally sized bins. In this plot, theta is 0.95.'}
@@ -1279,7 +1282,7 @@ data_5 <- data %>%
 
 log_mod_5_loss <- bglmer(choice ~ reward_value + uncertainty +
                            treatment + age + gender + major +
-                           losses * treatment + reaction_time +
+                           losses + reaction_time +
                            sequence_number + (1 | id),
                     data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
@@ -1294,7 +1297,8 @@ colnames(s_5_loss) <- c('Variable', '(1)')
 ```{r log_loss_5_out, echo=FALSE}
 kable(s_5_loss, format = "latex", align = 'c',
       caption = 'Logistic model from test 5 with cumulative losses as well as the interaction between losses and treatment included.') %>%
-  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001")
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
 ```
 
 \newpage
@@ -1538,7 +1542,8 @@ s_5_out <- s_5 %>%
 ```{r log_mod_5_new_out, echo=FALSE}
 kable(s_5_out, format = "latex", align = 'c',
       caption = 'Three versions of test 5 on different subsets of data. Model 1 uses all available data. Model 2 uses only the first yellow session in an order in control. Model 3 uses only the first and second yellow session in an order in control. This table shows results when the pilot is excluded.') %>%
-  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001")
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
 ```
 
 ```{r new_treat_col_data, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
@@ -1832,7 +1837,8 @@ s_3_step <- s_3_1 %>%
 ```{r log_mod_3_step_out, echo=FALSE}
 kable(s_3_step, format = "latex", align = 'c',
       caption = 'Stepwise comparison of models being built from theoretical base (1) to best fitting model (4). Noteworthy is that model (3) is the model from test 2.') %>%
-  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001")
+  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
 ```
 
 ## Test 5 model - table 7
@@ -1916,5 +1922,6 @@ s_5_step <- s_5_1 %>%
 ```{r log_mod_5_step_out, echo=FALSE}
 kable(s_5_step, format = "latex", align = 'c',
       caption = 'Stepwise comparison of models being built from theoretical base (1) to best fitting model (4).') %>%
-  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001")
+  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
 ```

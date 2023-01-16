@@ -16,7 +16,7 @@ for (i in 1:nrow(data)) {
     out_hist <- if_else(data$outcome[(i-e_time):(i-1)] > 0, 1, 0)
     
     # data$exposure_time[i] <- sum((1:(e_time))*out_hist*0.9^((e_time-1):0))
-    data$exposure_time[i] <- sum(out_hist*0.9^((e_time-1):0))
+    data$exposure_time[i] <- sum(out_hist*theta^((e_time-1):0))
   }
   
   # Reset if new sequence
