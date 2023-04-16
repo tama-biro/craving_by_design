@@ -32,6 +32,7 @@ for (i in 1:nrow(data)) {
   if(i != 1) {
     if(data$id[i] == data$id[i-1]) {
       data$previous_choice[i] <- data$choice[i - 1]
+      data$previous_trial_outcome[i] <- data$status_of_play[i - 1]
     }
   }
 }

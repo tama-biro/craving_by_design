@@ -1,7 +1,7 @@
 ---
-title: "Halfway Report 23-01-08"
+title: "Full Report 23-04-16"
 author: "Samuel Thelaus"
-date: "2023-01-08"
+date: "2023-04-16"
 
 output:
   pdf_document: default
@@ -136,13 +136,42 @@ filepath <- '../data/data_reduced.csv'
 data <- read.csv(filepath)
 
 n <- length(unique(data$id))
+
+age_by_n <- data %>%
+  group_by(id) %>%
+  summarize(age = mean(age)) %>%
+  ungroup %>%
+  filter(age != 0)
+
+gender_by_n <- data %>%
+  group_by(id) %>%
+  summarize(gender = mean(gender)) %>%
+  ungroup
+
+major_by_n <- data %>%
+  group_by(id) %>%
+  summarize(major = mean(major)) %>%
+  ungroup
+
+mean_age <- round(mean(age_by_n$age), 2)
+min_age <- min(age_by_n$age)
+max_age <- max(age_by_n$age)
+
+n_gender_1 <- sum(gender_by_n$gender == 1)
+n_gender_2 <- sum(gender_by_n$gender == 2)
+n_gender_3 <- sum(gender_by_n$gender == 3)
+
+n_major_1 <- sum(major_by_n$major == 1)
+n_major_2 <- sum(major_by_n$major == 2)
+n_major_3 <- sum(major_by_n$major == 3)
+n_major_4 <- sum(major_by_n$major == 4)
 ```
 
 # Main analysis
 
 This section goes through the tests specified in the pre-registration report and specifies observed effect sizes in the sample so far.
 
-There was a total of `r n` participants after excluding participants.
+There was a total of `r n` participants after excluding participants. The mean age of participants was `r mean_age` (range `r min_age`-`r max_age`) years old. The gender distribution was Female = `r n_gender_1`, Male = `r n_gender_2`, Other = `r n_gender_3`. The distribution of majors for participants was STEM = `r n_major_1`, Business = `r n_major_2`, Humanities = `r n_major_3`, Other = `r n_major_4`.
 
 ```{r t-test 1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 #### Test 1 ####
@@ -1750,11 +1779,80 @@ ggplot(data_plot, aes(x = group, y = mean)) +
         axis.text = element_text(size = 14))
 ```
 
+## Previous trial outcome
+
+In order to check for the effect of previous trials, the effect of previous trial outcome was included and compared to the effect of the previous choice variable. Previous trial outcome works similarly to previous choice, but when trial is not played (due to Aaron being cheeky, i.e. high uncertainty), the trial is coded as a skip rather than play.
+
+### Comparison of previous choice and previous trial outcome for model 2 - table 6
+
+```{r log_mod_3_choice_outcome, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_3_trial <- data %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         color = factor(block_type, levels = c("C", "S"),
+                        labels = c("Yellow", "Blue")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_3_prev_choice <- bglmer(choice ~ reward_value + uncertainty +
+                                  treatment * color + age + gender + major +
+                                  reaction_time + sequence_number +
+                                  previous_choice + (1 | id),
+                                fixef.prior = t, data = data_3_trial,
+                                family = binomial(link = "logit"))
+
+s_3_prev_choice <- glmer_report(log_mod_3_prev_choice)
+```
+
+```{r log_mod_3_trial_outcome, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+log_mod_3_prev_trial <- bglmer(choice ~ reward_value + uncertainty +
+                                 treatment * color + age + gender + major +
+                                 reaction_time + sequence_number +
+                                 previous_trial_outcome + (1 | id),
+                               fixef.prior = t, data = data_3_trial,
+                               family = binomial(link = "logit"))
+
+s_3_prev_trial <- glmer_report(log_mod_3_prev_trial)
+
+colnames(s_3_prev_choice) <- c('Variable', '(1)')
+colnames(s_3_prev_trial) <- c('Variable', '(2)')
+
+aov_3 <- anova(log_mod_3_prev_choice, log_mod_3_prev_trial)
+aov_3 <- aov_chi_report(aov_3)
+aic_3 <- round(AIC(log_mod_3_prev_choice, log_mod_3_prev_trial), 0)
+aic_3 <- c('AIC', as.character(aic_3$AIC))
+bic_3 <- round(BIC(log_mod_3_prev_choice, log_mod_3_prev_trial), 0)
+bic_3 <- c('BIC', as.character(bic_3$BIC))
+
+s_trial_outcome <- s_3_prev_choice %>%
+  right_join(s_3_prev_trial) %>%
+  replace_na(list('Variable' = '-',
+                  '(1)' = '-',
+                  '(2)' = '-')) %>%
+  rbind(rep('-', 3)) %>%
+  rbind(aic_3) %>%
+  rbind(bic_3)
+```
+
+```{r log_mod_23_out_trial_outcome, echo=FALSE}
+kable(s_trial_outcome, format = "latex", align = 'c',
+      caption = 'Model 2 with previous choice (1) and previous trial outcome') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
 ## Stepwise model building process
 
 This section shows the process of building the models from the theoretical version (in preregistration) to the model shown in the report. Models are built with incrementally more variables and each model is compared using AIC and BIC.
 
-### Test 3 model (includes test 2) - table 6
+### Test 3 model (includes test 2) - table 7
 
 ```{r log_mod_3_step_build, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_2 <- data %>%
@@ -1841,7 +1939,7 @@ kable(s_3_step, format = "latex", align = 'c',
   kable_styling(latex_options = "HOLD_position")
 ```
 
-## Test 5 model - table 7
+## Test 5 model - table 8
 
 ```{r log_mod_5_step_build, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_5 <- data %>%
