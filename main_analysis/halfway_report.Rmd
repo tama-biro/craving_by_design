@@ -1824,8 +1824,6 @@ s_3_prev_trial <- glmer_report(log_mod_3_prev_trial)
 colnames(s_3_prev_choice) <- c('Variable', '(1)')
 colnames(s_3_prev_trial) <- c('Variable', '(2)')
 
-aov_3 <- anova(log_mod_3_prev_choice, log_mod_3_prev_trial)
-aov_3 <- aov_chi_report(aov_3)
 aic_3 <- round(AIC(log_mod_3_prev_choice, log_mod_3_prev_trial), 0)
 aic_3 <- c('AIC', as.character(aic_3$AIC))
 bic_3 <- round(BIC(log_mod_3_prev_choice, log_mod_3_prev_trial), 0)

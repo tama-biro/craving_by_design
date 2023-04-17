@@ -4,7 +4,7 @@ library(tidyverse)
 # Initialize exposure time as 0
 theta <- theta_fun()
 e_time <- 0
-data[, c('previous_choice', 'exposure_time')] <- NA
+data[, c('previous_choice', 'previous_trial_outcome', 'exposure_time')] <- NA
 for (i in 1:nrow(data)) {
   
   # If exposure time is 0, assign zero
