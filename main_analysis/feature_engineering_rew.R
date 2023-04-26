@@ -33,6 +33,7 @@ for (i in 1:nrow(data)) {
   if(i != 1) {
     if(data$id[i] == data$id[i-1]) {
       data$previous_choice[i] <- data$choice[i - 1]
+      data$previous_trial_outcome[i] <- if_else(data$outcome[i-1] > 0, 1, 0)
     }
   }
 }
