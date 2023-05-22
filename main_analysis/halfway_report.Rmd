@@ -42,7 +42,7 @@ suppressMessages({
 })
 suppressWarnings(library(kableExtra))
 
-setwd('C:/Users/SamuelThelaus/Documents/GitHub/craving_by_design/main_analysis')
+setwd('C:/Users/samue/Documents/GitHub/craving_by_design/main_analysis')
 
 # SE function
 se <- function (x) {
@@ -1842,6 +1842,139 @@ s_trial_outcome <- s_3_prev_choice %>%
 ```{r log_mod_23_out_trial_outcome, echo=FALSE}
 kable(s_trial_outcome, format = "latex", align = 'c',
       caption = 'Model 2 with previous choice (1) and previous trial outcome (2).') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+## Full models with previous choice and reward history/previous trial outcome
+
+### Model 2
+
+```{r log_mod_3_multi, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_3_multi <- data %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         color = factor(block_type, levels = c("C", "S"),
+                        labels = c("Yellow", "Blue")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number),
+         reward_history = scale(exposure_time))
+
+log_mod_3_reward <- bglmer(choice ~ reward_value + uncertainty +
+                                  treatment * color + age + gender + major +
+                                  reaction_time + sequence_number +
+                                  previous_choice + reward_history + (1 | id),
+                                fixef.prior = t, data = data_3_multi,
+                                family = binomial(link = "logit"))
+
+s_3_reward <- glmer_report(log_mod_3_reward)
+
+log_mod_3_prev_trial <- bglmer(choice ~ reward_value + uncertainty +
+                                 treatment * color + age + gender + major +
+                                 reaction_time + sequence_number +
+                                 previous_choice + previous_trial_outcome +
+                                 (1 | id),
+                               fixef.prior = t, data = data_3_multi,
+                               family = binomial(link = "logit"))
+
+s_3_prev_trial <- glmer_report(log_mod_3_prev_trial)
+```
+
+```{r log_mod_3_multi_combine, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+colnames(s_3_reward) <- c(' ', '(1)')
+colnames(s_3_prev_trial) <- c(' ', '(2)')
+
+s_3_pcr <- c('R^2',
+             round(r2_nakagawa(log_mod_3_reward)$R2_conditional, 3),
+             round(r2_nakagawa(log_mod_3_prev_trial)$R2_conditional, 3))
+s_3_pcn <- c('N',
+             summary(log_mod_3_reward)$devcomp$dims[1],
+             summary(log_mod_3_prev_trial)$devcomp$dims[1])
+
+s_multi <- s_3_reward %>%
+  full_join(s_3_prev_trial) %>%
+  replace_na(list(' ' = '-',
+                  '(1)' = '-',
+                  '(2)' = '-')) %>%
+  rbind(rep('-', 3)) %>%
+  rbind(s_3_pcr) %>%
+  rbind(s_3_pcn)
+```
+
+```{r log_mod_3_out_multi, echo=FALSE}
+kable(s_multi, format = "latex", align = 'c',
+      caption = 'Model 2 with previous choice and reward history (1) or previous trial outcome (2).') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+### Test 5
+
+```{r log_mod_5_multi, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_5 <- data %>%
+  filter(block_type == "C" & craver_2 == 1) %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reward_history = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_5_reward <- bglmer(choice ~ reward_value + uncertainty * treatment +
+                             age + gender + major + reaction_time +
+                             sequence_number + previous_choice +
+                             reward_history + (1 | id),
+                           data = data_5, fixef.prior = t,
+                           family = binomial(link = "logit"))
+
+s_5_reward <- glmer_report(log_mod_5_reward)
+
+log_mod_5_trial <- bglmer(choice ~ reward_value + uncertainty * treatment +
+                            age + gender + major + reaction_time +
+                            sequence_number + previous_choice +
+                            previous_trial_outcome + (1 | id),
+                          data = data_5, fixef.prior = t,
+                          family = binomial(link = "logit"))
+
+s_5_trial <- glmer_report(log_mod_5_trial)
+```
+
+```{r log_mod_5_multi_combine, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+colnames(s_5_reward) <- c(' ', '(1)')
+colnames(s_5_trial) <- c(' ', '(2)')
+s_5_r <- c('R^2',
+           round(r2_nakagawa(log_mod_5_reward)$R2_conditional, 3),
+           round(r2_nakagawa(log_mod_5_trial)$R2_conditional, 3))
+s_5_n <- c('N',
+           summary(log_mod_5_reward)$devcomp$dims[1],
+           summary(log_mod_5_trial)$devcomp$dims[1])
+
+s_5_out <- s_5_reward %>%
+  full_join(s_5_trial) %>%
+  replace_na(list(' ' = '-',
+                  '(1)' = '-',
+                  '(2)' = '-')) %>%
+  rbind(rep('-', 3)) %>%
+  rbind(s_5_r) %>%
+  rbind(s_5_n)
+```
+
+```{r log_mod_5_out_multi, echo=FALSE}
+kable(s_5_out, format = "latex", align = 'c',
+      caption = 'Test 5 with previous choice and reward history (1) or previous trial outcome (2). Models use all yellow sessions for cravers.') %>%
   kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
   kable_styling(latex_options = "HOLD_position")
 ```
