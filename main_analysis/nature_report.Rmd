@@ -1,0 +1,314 @@
+---
+title: "Full Report `r Sys.Date()`"
+author: "Samuel Thelaus"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+  word_document: default
+---
+
+\newpage
+
+# Initial data checks
+
+One participant had fewer than 630 total trials (total of 455 trials remained in file) and was missing columns for the final 3 MCQ questions (4-6). However, this participant was still included in analysis.
+
+\newpage
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.pos = "H")
+options(knitr.table.format = function() {
+  if (knitr::is_latex_output())
+    "latex" else "simple"
+})
+```
+
+```{r import, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# Import libraries
+suppressMessages({
+  library(tidyverse)
+  library(moments)
+  library(EnvStats)
+  library(blme)
+  library(BayesianFirstAid)
+  library(knitr)
+  library(MuMIn)
+  library(performance)
+  library(ggsignif)
+})
+suppressWarnings(library(kableExtra))
+
+setwd('C:/Users/samue/Documents/GitHub/craving_by_design/main_analysis')
+
+# SE function
+se <- function (x) {
+  se = sd(x, na.rm = TRUE)/sqrt(length(x))
+  return(se)
+}
+
+# Shapiro to text
+shapiro_to_text <- function (x) {
+  if (x < .05) {
+    return('non-normality')
+  } else {
+    return('normality')
+  }
+}
+
+# T-test report
+t_test_report <- function (t_test) {
+  df <- round(t_test$parameter, 3)
+  t <- round(t_test$statistic, 3)
+  p <- round(t_test$p.value, 3)
+  if (t_test$p.value < .001) {
+    p <- 'p < .001'
+  } else {
+    p <- paste('p =', p)
+  }
+  out <- paste0('t(', df, ') = ', t, ', ', p)
+  return(out)
+}
+
+# Wilcox report
+wilcox_report <- function (wilcox) {
+  v <- round(wilcox$statistic, 3)
+  p <- round(wilcox$p.value, 3)
+  if (wilcox$p.value < .001) {
+    p <- 'p < .001'
+  } else {
+    p <- paste('p =', p)
+  }
+  out <- paste('V =', v, p)
+  return(out)
+}
+
+# glmer report
+glmer_report <- function (mod) {
+  s <- summary(mod)$coefficients
+  s <- as.data.frame(s)
+  colnames(s) <- c('Beta', 'SE', 'z', 'p')
+  s <- round(s, 3)
+  s <- s %>%
+    mutate(p =
+             ifelse(p < .001, '***',
+                     ifelse(p < .01, '**',
+                             ifelse(p < .05, '*', ''))))
+  colnames(s) <- c('Beta', 'SE', 'z', 'p')
+  s <- s %>%
+    mutate(m_1 = paste0(Beta, ' (', SE, ')', p)) %>%
+    select(m_1) %>%
+    rownames_to_column("Variable") %>%
+    filter(!(Variable %in% c('age', 'gender2', 'gender3',
+                           'major2', 'major3', 'major4')))
+  return(s)
+}
+
+aov_chi_report <- function (mod) {
+  chi <- round(mod$Chisq[2], 3)
+  df <- mod$Df[2]
+  p <- round(mod$`Pr(>Chisq)`[2], 3)
+  if (p < .001) {
+    p <- 'p < .001'
+  } else {
+    p <- paste('p =', p)
+  }
+  out <- paste0('Chi2(', df, ') = ', chi, ', ', p)
+  return(out)
+}
+```
+
+```{r feature eng, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+filepath <- '../data/data_full.csv'
+data <- read.csv(filepath)
+
+theta_fun <- function() {
+  return(1)
+}
+
+source("./feature_engineering.R", local = knit_global())
+
+# Save engineered data
+write.csv(data, file = '../data/data_reduced.csv', row.names = FALSE)
+```
+
+```{r load data, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+set.seed(41)
+
+filepath <- '../data/data_reduced.csv'
+data <- read.csv(filepath)
+
+n <- length(unique(data$id))
+
+age_by_n <- data %>%
+  group_by(id) %>%
+  summarize(age = mean(age)) %>%
+  ungroup %>%
+  filter(age != 0)
+
+gender_by_n <- data %>%
+  group_by(id) %>%
+  summarize(gender = mean(gender)) %>%
+  ungroup
+
+major_by_n <- data %>%
+  group_by(id) %>%
+  summarize(major = mean(major)) %>%
+  ungroup
+
+mean_age <- round(mean(age_by_n$age), 2)
+min_age <- min(age_by_n$age)
+max_age <- max(age_by_n$age)
+
+n_gender_1 <- sum(gender_by_n$gender == 1)
+n_gender_2 <- sum(gender_by_n$gender == 2)
+n_gender_3 <- sum(gender_by_n$gender == 3)
+
+n_major_1 <- sum(major_by_n$major == 1)
+n_major_2 <- sum(major_by_n$major == 2)
+n_major_3 <- sum(major_by_n$major == 3)
+n_major_4 <- sum(major_by_n$major == 4)
+```
+
+# Descriptive statistics
+
+This section goes through the tests specified in the pre-registration report and specifies observed effect sizes in the sample so far.
+
+There was a total of `r n` participants after excluding participants. The mean age of participants was `r mean_age` (range `r min_age`-`r max_age`) years old. The gender distribution was Female = `r n_gender_1`, Male = `r n_gender_2`, Other = `r n_gender_3`. The distribution of majors for participants was STEM = `r n_major_1`, Business = `r n_major_2`, Humanities = `r n_major_3`, Other = `r n_major_4`.
+
+# Test 1
+
+```{r t-test 1, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+#### Test 1 ####
+
+# Paired one-tailed t-test, participant level
+# Betting rate in low/high reward
+data_1 <- data %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High"))) %>%
+  filter(block_type == "C") %>%
+  group_by(id, reward_value) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup
+
+
+# Check skew and normality assumption
+skew_1_bf <- round(skewness(sqrt(data_1$betting_rate)), 3)
+shap_1_bf <- shapiro.test(data_1$betting_rate)
+shap_1_bf <- shapiro_to_text(shap_1_bf$p.value)
+
+
+# Box-Cox transform
+out <- boxcox(data_1$betting_rate + 1, lambda = seq(-25, 25, by = 0.25))
+bc_1_lambda <- out$lambda[which.max(out$objective)]
+
+data_1$betting_rate_bc <- boxcoxTransform(data_1$betting_rate + 1,
+                                          lambda = bc_1_lambda)
+
+skew_1_af <- round(skewness(sqrt(data_1$betting_rate_bc)), 3)
+shap_1_af <- shapiro.test(data_1$betting_rate_bc)
+shap_1_af <- shapiro_to_text(shap_1_af$p.value)
+
+
+# Run test
+t_test_1 <- t.test(betting_rate_bc ~ reward_value, data = data_1,
+                   alternative = 'less', paired = TRUE)
+t_test_1 <- t_test_report(t_test_1)
+
+# Non-parametric
+wilcox_1 <- wilcox.test(betting_rate ~ reward_value, data = data_1,
+                        alternative = 'less', paired = TRUE)
+wilcox_1 <- wilcox_report(wilcox_1)
+```
+
+Paired t-test to compare participant betting rate in the high-reward vs. low-reward sessions in the yellow background sessions, one-sided; H0: Betting rate is higher or equal in the low-reward sessions. We expect to be able to reject H0 at a 5% significance level (Prediction 1).
+
+Participant-level test (N = `r n`).
+
+Data was skewed at `r skew_1_bf` (ideal values within [-1, 1]) and a Shapiro-Wilks test showed `r shap_1_bf`. Data were Box-Cox transformed with lambda = `r bc_1_lambda`. This reduced skew to `r skew_1_af` (acceptable value), but SW test still showed `r shap_1_af`.
+
+Paired t-test using Box-Cox transformed data showed higher betting rate in high reward sessions (`r t_test_1`). Non-parametric paired Wilcoxon test using non-transformed data showed qualitatively same results (`r wilcox_1`).
+
+\newpage
+
+# Test 2
+
+```{r log_mod_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_2 <- data %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         color = factor(block_type, levels = c("C", "S"),
+                        labels = c("Yellow", "Blue")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_2 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major +
+                      reaction_time + sequence_number + (1 | id),
+                    fixef.prior = t, data = data_2,
+                    family = binomial(link = "logit"))
+
+s_2 <- glmer_report(log_mod_2)
+
+s_2_r <- round(r2_nakagawa(log_mod_3)$R2_conditional, 3)
+s_2_n <- summary(log_mod_2)$devcomp$dims[1]
+
+s_2 <- s_2 %>%
+  rbind(s_2_r) %>%
+  rbind(s_2_n)
+```
+
+```{r log_mod_23_out, echo=FALSE}
+kable(s_2, align = 'c', caption = '') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+Logistic mixed effects model predicting betting, with independent variables: potential reward value in the session, uncertainty level in the session, a dummy for treatment (reference: treatment C), a dummy for session colour (reference: yellow), the interaction of treatment and session colour, and several control variables (which include the previous decision, to control for choice inertia/stickiness). The main variables of interest are:
+
+- the reward variable; we expect a positive coefficient on that variable (Prediction 1).
+- the interaction of treatment and session colour. We predict a negative coefficient on this variable (Predictions 2 & 3).
+- the uncertainty variable; a positive coefficient would be consistent with Prediction 4.
+
+\newpage
+
+# Test 3
+
+Logistic mixed effects model predicting betting, with independent variables: potential reward value in the session, uncertainty level in the session, a dummy for treatment (reference: treatment C), a dummy for session colour (reference: yellow), the previous decision, and reward exposure, which is the discounted sum of prior rewards as defined in our computational model (more below). The main variable of interest is the reward exposure variable. We expect it to be significantly positive (Prediction 2).
+
+\newpage
+
+# Test 4
+
+Linear regression using as dependent variable participant betting rate in yellow (proxy for craving). We will also run a logistic regression using as dependent variable participant type (0: non craver; 1: craver). A craver is defined as a participant who chooses to bet at least twice across the yellow background sessions during the task.†† The independent variables will include a dummy code for treatment (reference: treatment C) and several control variables which include participant accuracy at the post-yellow-sessions lotteries (to control for the aforementioned miswanting aspect of behaviour). Our main variable of interest is the treatment variable: we expect a significantly positive coefficient on that variable (Prediction 3).
+
+\newpage
+
+# Test 5
+
+Logistic mixed effects model predicting betting in a yellow background session; the independent variables include potential reward value in the session, uncertainty level in the session, a dummy for treatment (reference: treatment C), and the previous decision (to control for choice inertia/stickiness). The main variables of interest are:
+- the reward variable; we expect a positive coefficient on that variable (Prediction 1).
+- the treatment variable; we expect a positive coefficient on this variable (Prediction 3).
+- the uncertainty variable; a positive coefficient would be consistent with Prediction 4.
+
+\newpage
+
+# Test 6
+
+Paired t-test to compare participant betting rate in the high-uncertainty vs. lowuncertainty sessions in the yellow background sessions, one-sided; H0: Betting rate is higher or equal in the low-uncertainty sessions. We expect to be able to reject H0 at a significance level of 5% (Prediction 4).
+
+\newpage
+
+# Test 7
+
+Bayesian t-test checking if betting rate in yellow session in the test treatment is different from 0. Participant-level test (N = `r n_7`).
+
+
