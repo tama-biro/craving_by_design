@@ -29,7 +29,6 @@ options(knitr.table.format = function() {
 # Import libraries
 suppressMessages({
   library(tidyverse)
-  library(psych)
   library(moments)
   library(EnvStats)
   library(blme)
@@ -286,7 +285,38 @@ table_s3 <- data.frame(craving_definition = c('Bet in yellow', 'At least twice i
                        Total = cravers_total)
 
 # Betting rate in blue
+betting_stats_blue <- data %>%
+  filter(block_type == "S") %>%
+  group_by(id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  psych::describe()
 
+betting_stats_blue_sub <- betting_stats_blue['betting_rate',
+                                             c('n', 'mean', 'median', 'sd',
+                                               'min', 'max', 'skew')] %>%
+  round(3) %>%
+  t
+colnames(betting_stats_blue_sub) <- 'Blue'
+
+# Betting rate in yellow
+betting_stats_yellow <- data %>%
+  filter(block_type == "C") %>%
+  group_by(id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  psych::describe()
+
+betting_stats_yellow_sub <- betting_stats_yellow['betting_rate',
+                                                 c('n', 'mean', 'median', 'sd',
+                                                   'min', 'max', 'skew')] %>%
+  round(3) %>%
+  t
+colnames(betting_stats_yellow_sub) <- 'Yellow'
+
+table_s4 <- betting_stats_blue_sub %>%
+  cbind(betting_stats_yellow_sub) %>%
+  as.data.frame()
 ```
 
 # Descriptive statistics
