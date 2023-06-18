@@ -32,7 +32,7 @@ suppressMessages({
   library(moments)
   library(EnvStats)
   library(blme)
-  library(BayesianFirstAid)
+  library(DescTools)
   library(knitr)
   library(MuMIn)
   library(performance)
@@ -40,7 +40,7 @@ suppressMessages({
 })
 suppressWarnings(library(kableExtra))
 
-setwd('C:/Users/samue/Documents/GitHub/craving_by_design/main_analysis')
+setwd('C:/Users/SamuelThelaus/Documents/GitHub/craving_by_design/main_analysis')
 
 # SE function
 se <- function (x) {
@@ -82,6 +82,62 @@ wilcox_report <- function (wilcox) {
   }
   out <- paste('V =', v, p)
   return(out)
+}
+
+lm_report <- function(mod) {
+  s <- summary(mod)
+  f <- s$fstatistic[1]
+  df1 <- s$fstatistic[2]
+  df2 <- s$fstatistic[3]
+  p <- pf(f, df1, df2, lower.tail = FALSE)
+  p <- round(p, 3)
+  if (p < .001) {
+    p <- 'p < .001'
+  } else {
+    p <- paste('p =', p)
+  }
+  f <- round(f, 3)
+  r2 <- round(s$adj.r.squared, 3)
+  
+  f_test <- paste0('F', '(', df1, ', ', df2, ') = ', f, ', ', p, ', R^2 = ', r2)
+  
+  s_table <- s$coefficients %>%
+    as.data.frame() %>%
+    round(3)
+  colnames(s_table) <- c('Beta', 'SE', 't', 'p')
+  s_table <- s_table %>%
+    mutate(p =
+             ifelse(p < .001, '***',
+                     ifelse(p < .01, '**',
+                             ifelse(p < .05, '*', ''))))
+  s_table <- s_table %>%
+    mutate(m_1 = paste0(Beta, ' (', SE, ')', p)) %>%
+    select(m_1) %>%
+    rownames_to_column("Variable") %>%
+    filter(!(Variable %in% c('age', 'gender2', 'gender3',
+                           'major2', 'major3', 'major4')))
+  out_list <- list(f_test = f_test, table = s_table)
+  return(out_list)
+}
+
+glm_report <- function(mod) {
+  s <- summary(mod)
+  s_table <- s$coefficients %>%
+    as.data.frame() %>%
+    round(3)
+  colnames(s_table) <- c('Beta', 'SE', 'z', 'p')
+  s_table <- s_table %>%
+    mutate(p =
+             ifelse(p < .001, '***',
+                     ifelse(p < .01, '**',
+                             ifelse(p < .05, '*', ''))))
+  s_table <- s_table %>%
+    mutate(m_1 = paste0(Beta, ' (', SE, ')', p)) %>%
+    select(m_1) %>%
+    rownames_to_column("Variable") %>%
+    filter(!(Variable %in% c('age', 'gender2', 'gender3',
+                           'major2', 'major3', 'major4')))
+  return(s_table)
 }
 
 # glmer report
@@ -227,6 +283,7 @@ table_s1 <- data.frame(participant_type = c('Optimal', 'Cravers', 'Total'),
                        MCQ = c(mcq_opt_out, mcq_cra_out, mcq_tot_out),
                        post_game_quiz = c('-', post_game_quiz_out, post_game_quiz_out),
                        Total = c(total_opt, total_cra, total_tot))
+colnames(table_s1) <- c('Participant type', 'MCQ', 'Post-game quiz', 'Total')
 
 # pre game strategy - table S2
 table_s2 <- data %>%
@@ -235,7 +292,8 @@ table_s2 <- data %>%
   ungroup() %>%
   count(pre_game) %>%
   select(n) %>%
-  t
+  t %>%
+  as.data.frame()
 colnames(table_s2) <- c('No strategy', 'Not quite sure', 'Quite confident', 'Think it is right')
 
 # Fraction of cravers in experiment - table S3
@@ -254,6 +312,8 @@ n_test <- data %>%
   unique %>%
   ungroup %>%
   nrow
+cravers_test_frac <- paste0(cravers_test*n_test, rep('/', 2), n_test, ' = ',
+                            paste0(round(cravers_test, 2)*100, '%'))
 
 cravers_control <- data %>%
   filter(treatment == "control") %>%
@@ -270,6 +330,8 @@ n_control <- data %>%
   unique %>%
   ungroup %>%
   nrow
+cravers_ctrl_frac <- paste0(cravers_control*n_control, rep('/', 2), n_control, ' = ',
+                            paste0(round(cravers_control, 2)*100, '%'))
 
 cravers_total <- data %>%
   group_by(id) %>%
@@ -278,11 +340,14 @@ cravers_total <- data %>%
   summarize(bet_once_in_yellow = mean(craver),
             bet_twice_in_yellow = mean(craver_2)) %>%
   t
+cravers_total_frac <- paste0(cravers_total*n, rep('/', 2), n, ' = ',
+                             paste0(round(cravers_total, 2)*100, '%'))
 
 table_s3 <- data.frame(craving_definition = c('Bet in yellow', 'At least twice in yellow'),
-                       Test = cravers_test,
-                       Control = cravers_control,
-                       Total = cravers_total)
+                       Test = cravers_test_frac,
+                       Control = cravers_ctrl_frac,
+                       Total = cravers_total_frac)
+colnames(table_s3) <- c('Craving definition', 'Test', 'Control', 'Total')
 
 # Betting rate in blue
 betting_stats_blue <- data %>%
@@ -321,32 +386,33 @@ table_s4 <- betting_stats_blue_sub %>%
 
 # Descriptive statistics
 
-Table S1
-- % correct replies across participants for MCQ, pre-task quiz, post-game quiz, total
-- Optimal, cravers, total
-
-Table S2
-- Participant strategy of play: no clue, yes but not sure, confident
-
-Table S3
-- % cravers in test, control, total
-- Bet in yellow once vs twice
-
-Table S4
-- Betting rate in blue background sessions for control, test, total
-- N, mean, median, SD, min, max, skew
-- Across participants, not split by cravers/others
-
-Table S5
-- Betting rate in yellow background sessions for control, test, total
-- N, mean, median, SD, min, max, skew
-- Across participants, not split by cravers/others
-
-
-
 This section goes through the tests specified in the pre-registration report and specifies observed effect sizes in the sample so far.
 
 There was a total of `r n` participants after excluding participants. The mean age of participants was `r mean_age` (range `r min_age`-`r max_age`) years old. The gender distribution was Female = `r n_gender_1`, Male = `r n_gender_2`, Other = `r n_gender_3`. The distribution of majors for participants was STEM = `r n_major_1`, Business = `r n_major_2`, Humanities = `r n_major_3`, Other = `r n_major_4`.
+
+```{r table_s1_out, echo=FALSE}
+kable(table_s1, align = 'c',
+      caption = 'Participant understanding of basic aspects of the task. “MCQ”: The table reports the percentage of correct replies to the 6 MCQ questions. “Pre-/Post-task quiz”: MCQ about the probability of a winning bet in a yellow/blue background session. The question is asked twice: just before the beginning of the task (“Pre”), and immediately after the task is completed (“Post”). “Optimal”: Participants who play optimally, i.e., they pass in all trials of all yellow background sessions. “Cravers”: Participants who bet at least twice across yellow background sessions during the experimental task (this is the definition used in Test 4; see also Table S3).') %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+```{r table_s2_out, echo=FALSE}
+kable(table_s2, align = 'c',
+      caption = 'Participant report on whether they have a strategy of play just before they start performing the task.') %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+```{r table_s3_out, echo=FALSE}
+kable(table_s3, align = 'c',
+      caption = 'Fraction of cravers in the experiment. “At least twice in yellow”: percentage of participants who bet at least twice across yellow background sessions during the experimental task (this is the definition of “craver” used in Test 4). “Bet in yellow”: percentage of participants who bet once or more in the yellow background sessions during the experimental task (reported here for reference).') %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+```{r table_s4_out, echo=FALSE}
+kable(table_s4, align = 'c',
+      caption = 'Betting rate of all participants, in blue and yellow background sessions.') %>%
+  kable_styling(latex_options = "HOLD_position")
+```
 
 # Test 1
 
@@ -413,8 +479,8 @@ data_2 <- data %>%
                               labels = c("Low", "High")),
          treatment = factor(treatment, levels = c("control", "test"),
                             labels = c("Control", "Test")),
-         color = factor(block_type, levels = c("C", "S"),
-                        labels = c("Yellow", "Blue")),
+         color = factor(block_type, levels = c("S", "C"),
+                        labels = c("Blue", "Yellow")),
          age = scale(age),
          gender = factor(gender),
          major = factor(major),
@@ -422,44 +488,131 @@ data_2 <- data %>%
          sequence_number = scale(sequence_number))
 
 log_mod_2 <- bglmer(choice ~ reward_value + uncertainty +
-                      treatment * color + age + gender + major +
-                      reaction_time + sequence_number + (1 | id),
+                      treatment * color + previous_choice + age + gender +
+                      major + sequence_number + (1 | id),
                     fixef.prior = t, data = data_2,
                     family = binomial(link = "logit"))
 
 s_2 <- glmer_report(log_mod_2)
 
-s_2_r <- round(r2_nakagawa(log_mod_3)$R2_conditional, 3)
-s_2_n <- summary(log_mod_2)$devcomp$dims[1]
+s_2_r <- c('R^2', round(r2_nakagawa(log_mod_2)$R2_conditional, 3))
+s_2_n <- c('N', summary(log_mod_2)$devcomp$dims[1])
 
 s_2 <- s_2 %>%
   rbind(s_2_r) %>%
   rbind(s_2_n)
 ```
 
-```{r log_mod_23_out, echo=FALSE}
-kable(s_2, align = 'c', caption = '') %>%
+Logistic mixed effects model predicting betting, with independent variables: potential reward value in the session, uncertainty level in the session, a dummy for treatment (reference: treatment C), a dummy for session colour (reference: blue), the interaction of treatment and session colour, and several control variables (which include the previous decision, to control for choice inertia/stickiness).
+
+```{r log_mod_2_out, echo=FALSE}
+kable(s_2, align = 'c', caption = 'Logistic mixed model predicting betting (0: skip, 1: bet) for all participants in all trials. Variables are reward value (0: low, 1: high), uncertainty (0: low, 1: high), treatment (0: control, 1: test), session color (0: blue, 1: yellow), previous choice (0: skip, 1: bet), and the interaction between session color and treatment. Controls not shown were age, gender, major, and sequence number.') %>%
   kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
   kable_styling(latex_options = "HOLD_position")
 ```
-
-Logistic mixed effects model predicting betting, with independent variables: potential reward value in the session, uncertainty level in the session, a dummy for treatment (reference: treatment C), a dummy for session colour (reference: yellow), the interaction of treatment and session colour, and several control variables (which include the previous decision, to control for choice inertia/stickiness). The main variables of interest are:
-
-- the reward variable; we expect a positive coefficient on that variable (Prediction 1).
-- the interaction of treatment and session colour. We predict a negative coefficient on this variable (Predictions 2 & 3).
-- the uncertainty variable; a positive coefficient would be consistent with Prediction 4.
 
 \newpage
 
 # Test 3
 
-Logistic mixed effects model predicting betting, with independent variables: potential reward value in the session, uncertainty level in the session, a dummy for treatment (reference: treatment C), a dummy for session colour (reference: yellow), the previous decision, and reward exposure, which is the discounted sum of prior rewards as defined in our computational model (more below). The main variable of interest is the reward exposure variable. We expect it to be significantly positive (Prediction 2).
+```{r log_mod_3, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_3 <- data %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         color = factor(block_type, levels = c("S", "C"),
+                        labels = c("Blue", "Yellow")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number),
+         reward_exposure = scale(exposure_time))
+
+log_mod_3 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + previous_choice + reward_exposure +
+                      age + gender + major + sequence_number + (1 | id),
+                    fixef.prior = t, data = data_3,
+                    family = binomial(link = "logit"))
+
+s_3 <- glmer_report(log_mod_3)
+
+s_3_r <- c('R^2', round(r2_nakagawa(log_mod_3)$R2_conditional, 3))
+s_3_n <- c('N', summary(log_mod_3)$devcomp$dims[1])
+
+s_3 <- s_3 %>%
+  rbind(s_3_r) %>%
+  rbind(s_3_n)
+```
+
+Logistic mixed effects model predicting betting, with independent variables: potential reward value in the session, uncertainty level in the session, a dummy for treatment (reference: treatment C), a dummy for session colour (reference: blue), the previous decision, and reward exposure, which is the discounted sum of prior rewards as defined in our computational model (more below). The main variable of interest is the reward exposure variable. We expect it to be significantly positive (Prediction 2).
+
+```{r log_mod_3_out, echo=FALSE}
+kable(s_3, align = 'c', caption = 'Logistic mixed model predicting betting (0: skip, 1: bet) for all participants in all trials. Variables are reward value (0: low, 1: high), uncertainty (0: low, 1: high), treatment (0: control, 1: test), session color (0: blue, 1: yellow), previous choice (0: skip, 1: bet), reward exposure, and the interaction between session color and treatment. Controls not shown were age, gender, major, and sequence number.') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
 
 \newpage
 
 # Test 4
 
 Linear regression using as dependent variable participant betting rate in yellow (proxy for craving). We will also run a logistic regression using as dependent variable participant type (0: non craver; 1: craver). A craver is defined as a participant who chooses to bet at least twice across the yellow background sessions during the task.†† The independent variables will include a dummy code for treatment (reference: treatment C) and several control variables which include participant accuracy at the post-yellow-sessions lotteries (to control for the aforementioned miswanting aspect of behaviour). Our main variable of interest is the treatment variable: we expect a significantly positive coefficient on that variable (Prediction 3).
+
+```{r lin_log_4, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_4 <- data %>%
+  filter(block_type == "C") %>%
+  group_by(id, treatment, age, gender, major, craver_2) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  mutate(treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         craver = factor(craver_2, levels = 0:1,
+                         labels = c('Non-craver', 'Craver')))
+
+lin_mod_4 <- lm(betting_rate ~ treatment + age + gender + major,
+                data = data_4)
+s_4_lin <- lm_report(lin_mod_4)
+f_s4_lin <- s_4_lin$f_test
+s_4_lin_tab <- s_4_lin$table
+s_4_r_lin <- c('R^2', round(summary(lin_mod_4)$adj.r.squared, 3))
+s_4_n_lin <- c('N', summary(lin_mod_4)$df[1] + summary(lin_mod_4)$df[2])
+
+s_4_lin_tab <- s_4_lin_tab %>%
+  rbind(s_4_r_lin) %>%
+  rbind(s_4_n_lin)
+
+log_mod_4 <- glm(craver ~ treatment + age + gender + major,
+                data = data_4, family = binomial(link = "logit"))
+s_4_log <- glm_report(log_mod_4)
+
+s_4_r_log <- c('R^2', round(PseudoR2(log_mod_4), 3))
+s_4_n_log <- c('N', nrow(data_4))
+
+s_4_log_tab <- s_4_log %>%
+  rbind(s_4_r_log) %>%
+  rbind(s_4_n_log)
+```
+
+Linear model showed following F-statistic: `r f_test``
+
+```{r lin_mod_4_out, echo=FALSE}
+kable(s_4_lin_tab, align = 'c', caption = 'Linear model predicting betting rates in yellow for all participants. Main variable is the treatment effect (0: control, 1: test). Controls not shown were age, gender, major, and sequence number.') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+```{r log_mod_4_out, echo=FALSE}
+kable(s_4_log_tab, align = 'c', caption = 'Logistic model predicting whether a participant is a craver (bet at least twice in yellow). Main variable is the treatment effect (0: control, 1: test). Controls not shown were age, gender, major, and sequence number.') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
 
 \newpage
 
@@ -470,6 +623,38 @@ Logistic mixed effects model predicting betting in a yellow background session; 
 - the treatment variable; we expect a positive coefficient on this variable (Prediction 3).
 - the uncertainty variable; a positive coefficient would be consistent with Prediction 4.
 
+```{r log_mod_5, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_5 <- data %>%
+  filter(block_type == "C" & craver_2 == 1) %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reward_exposure = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_5 <- bglmer(choice ~ reward_value + uncertainty * treatment +
+                      age + gender + major + sequence_number +
+                      previous_choice + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+s_5 <- glmer_report(log_mod_5)
+
+s_5_r <- c('R^2', round(r2_nakagawa(log_mod_5)$R2_conditional, 3))
+s_5_n <- c('N', summary(log_mod_5)$devcomp$dims[1])
+
+s_5 <- s_5 %>%
+  rbind(s_5_r) %>%
+  rbind(s_5_n)
+```
+
 \newpage
 
 # Test 6
@@ -479,6 +664,10 @@ Paired t-test to compare participant betting rate in the high-uncertainty vs. lo
 [graph for uncertainty, BC corrected]
 
 \newpage
+
+```{r}
+n_7 = 100
+```
 
 # Test 7
 
