@@ -540,7 +540,7 @@ log_mod_3 <- bglmer(choice ~ reward_value + uncertainty +
 
 s_3 <- glmer_report(log_mod_3)
 
-s_3_r <- c('R^2', round(r2_nakagawa(log_mod_3)$R2_conditional, 3))
+s_3_r <- c('Nakagawa R^2', round(r2_nakagawa(log_mod_3)$R2_conditional, 3))
 s_3_n <- c('N', summary(log_mod_3)$devcomp$dims[1])
 
 s_3 <- s_3 %>%
@@ -592,7 +592,7 @@ log_mod_4 <- glm(craver ~ treatment + age + gender + major,
                 data = data_4, family = binomial(link = "logit"))
 s_4_log <- glm_report(log_mod_4)
 
-s_4_r_log <- c('R^2', round(PseudoR2(log_mod_4), 3))
+s_4_r_log <- c('Nakagawa R^2', round(PseudoR2(log_mod_4), 3))
 s_4_n_log <- c('N', nrow(data_4))
 
 s_4_log_tab <- s_4_log %>%
@@ -639,7 +639,7 @@ data_5 <- data %>%
          reaction_time = scale(reaction_time),
          sequence_number = scale(sequence_number))
 
-log_mod_5 <- bglmer(choice ~ reward_value + uncertainty * treatment +
+log_mod_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
                       age + gender + major + sequence_number +
                       previous_choice + (1 | id),
                     data = data_5, fixef.prior = t,
@@ -647,12 +647,28 @@ log_mod_5 <- bglmer(choice ~ reward_value + uncertainty * treatment +
 
 s_5 <- glmer_report(log_mod_5)
 
-s_5_r <- c('R^2', round(r2_nakagawa(log_mod_5)$R2_conditional, 3))
+s_5_r <- c('Nakagawa R^2', round(r2_nakagawa(log_mod_5)$R2_conditional, 3))
 s_5_n <- c('N', summary(log_mod_5)$devcomp$dims[1])
 
 s_5 <- s_5 %>%
   rbind(s_5_r) %>%
   rbind(s_5_n)
+
+data_5_vif <- data_5[,c('reward_value', 'uncertainty', 'treatment',
+                        'age', 'gender', 'major', 'sequence_number',
+                        'previous_choice')] %>%
+  mutate(reward_value = as.numeric(reward_value),
+         uncertainty = as.numeric(uncertainty),
+         treatment = as.numeric(treatment),
+         gender = as.numeric(gender),
+         major = as.numeric(major))
+usdm::vif(data_5_vif)
+```
+
+``` {r log_mod_5_out, echo=FALSE}
+kable(s_5, align = 'c', caption = 'Logistic mixed effects model predicting betting in yellow background sessions for cravers (bet at least twice in yellow). Independent variables were reward value (0: low, 1: high), uncertainty (0: low, 1: high), treatment (0: control, 1: test), and previous choice (0: skip, 1: bet). Controls not shown were age, gender, major, and sequence number.') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
 ```
 
 \newpage
@@ -661,21 +677,186 @@ s_5 <- s_5 %>%
 
 Paired t-test to compare participant betting rate in the high-uncertainty vs. low uncertainty sessions in the yellow background sessions, one-sided; H0: Betting rate is higher or equal in the low-uncertainty sessions. We expect to be able to reject H0 at a significance level of 5% (Prediction 4).
 
-[graph for uncertainty, BC corrected]
+```{r t_test_6, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+#### Test 6 ####
+
+# Paired one-tailed t-test, participant level
+# Betting rate in low/high uncertainty
+data_6 <- data %>%
+  mutate(uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High"))) %>%
+  filter(block_type == "C") %>%
+  group_by(id, uncertainty) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup
+
+# Check skew and normality assumption
+skew_6_bf <- round(skewness(sqrt(data_6$betting_rate)), 3)
+shap_6_bf <- shapiro.test(data_6$betting_rate)
+shap_6_bf <- shapiro_to_text(shap_6_bf$p.value)
+
+
+# Box-Cox transform
+out <- boxcox(data_6$betting_rate + 1, lambda = seq(-25, 25, by = 0.25))
+bc_6_lambda <- out$lambda[which.max(out$objective)]
+
+data_6$betting_rate_bc <- boxcoxTransform(data_6$betting_rate + 1,
+                                          lambda = bc_6_lambda)
+
+skew_6_af <- round(skewness(sqrt(data_6$betting_rate_bc)), 3)
+shap_6_af <- shapiro.test(data_6$betting_rate_bc)
+shap_6_af <- shapiro_to_text(shap_6_af$p.value)
+
+
+# Run test
+t_test_6 <- t.test(betting_rate_bc ~ uncertainty, data = data_6,
+                   alternative = 'less', paired = TRUE)
+t_test_6_out <- t_test_report(t_test_6)
+
+# Non-parametric
+wilcox_6 <- wilcox.test(betting_rate ~ uncertainty, data = data_6,
+                        alternative = 'less', paired = TRUE)
+wilcox_6 <- wilcox_report(wilcox_6)
+```
+
+Paired t-test to compare participant betting rate in the high-uncertainty vs. low-uncertainty sessions in the yellow background sessions, one-sided; H0: Betting rate is higher or equal in the low-uncertainty sessions. We expect to be able to reject H0 at a 5% significance level.
+
+Participant-level test (N = `r n`).
+
+Data was skewed at `r skew_6_bf` (ideal values within [-1, 1]) and a Shapiro-Wilks test showed `r shap_6_bf`. Data were Box-Cox transformed with lambda = `r bc_6_lambda`. This reduced skew to `r skew_6_af` (acceptable value), but SW test still showed `r shap_6_af`.
+
+Paired t-test using Box-Cox transformed data showed higher betting rate in high uncertainty sessions (`r t_test_6_out`). Non-parametric paired Wilcoxon test using non-transformed data showed qualitatively same results (`r wilcox_6`).
+
+```{r unc_plot_setup, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_plot_u <- data %>%
+  filter(block_type == "C") %>%
+  group_by(aaron_mood, id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup
+
+out <- boxcox(data_plot_u$betting_rate + 1, lambda = seq(-25, 25, by = 0.25))
+bc_plot6_lambda <- out$lambda[which.max(out$objective)]
+
+data_plot_u$betting_rate_bc <- boxcoxTransform(data_plot_u$betting_rate + 1,
+                                               lambda = bc_plot6_lambda)
+
+data_plot_u <- data_plot_u %>%
+  group_by(aaron_mood) %>%
+  summarize(se = se(betting_rate_bc),
+            betting_rate_bc = mean(betting_rate_bc)) %>%
+  ungroup %>%
+  mutate(aaron_mood = factor(aaron_mood, levels = c('Low', 'High'),
+                             labels = c('Low', 'High')))
+
+# Test for uncertainty
+p_unc <- t_test_6$p.value
+p_unc <- if_else(p_unc < .001, '***',
+                 if_else(p_unc < .01, '**',
+                         if_else(p_unc < .05, '*', 'n.s.')))
+
+cap_unc_all <- paste0('Average betting rate in yellow backround sessions for low and high uncertainty sessions for all participants ', '(', t_test_6_out, ').')
+```
+
+```{r unc_plot_out, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap=cap_unc_all}
+ggplot(data_plot_u, aes(x = aaron_mood, y = betting_rate_bc)) +
+  geom_bar(stat='identity', position = position_dodge(.9), fill = '#ffd700',
+           width = 0.6) +
+  geom_errorbar(aes(ymin = betting_rate_bc - se, ymax = betting_rate_bc + se),
+                position = position_dodge(.9), width = .1) +
+  scale_x_discrete(name = '', breaks = c('Low', 'High')) +
+  scale_y_continuous(name = 'Betting rate (Box-Cox corrected)') +
+  theme_minimal() +
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 14)) +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank()) +
+  geom_signif(comparisons = list(c('Low', 'High')),
+              map_signif_level = TRUE,
+              annotations = c(p_unc),
+              margin_top = 0.2)
+```
 
 \newpage
 
-```{r}
-n_7 = 100
-```
-
 # Test 7
 
-T-test checking if betting rate in yellow session in the test treatment is different from 0. Participant-level test (N = `r n_7`).
+```{r test_7, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+# T-test in yellow and test
+data_7_1 <- data %>%
+  filter(treatment == "test" & block_type == "C") %>%
+  group_by(id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup
 
-+ Betting rate in yellow C vs T
+n_7_1 <- nrow(data_7_1)
 
-[graph C vs T in yellow, fig3]
+t_test_7_1 <- t.test(data_7_1$betting_rate, mu = 0, alternative = 'greater')
+t_test_7_1_out <- t_test_report(t_test_7_1)
+
+# T-test C vs T in yellow
+data_7_2 <- data %>%
+  filter(block_type == "C") %>%
+  group_by(id, treatment) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup
+
+out <- boxcox(data_7_2$betting_rate + 1, lambda = seq(-25, 25, by = 0.25))
+bc_72_lambda <- out$lambda[which.max(out$objective)]
+
+data_7_2$betting_rate_bc <- boxcoxTransform(data_7_2$betting_rate + 1,
+                                            lambda = bc_72_lambda)
+
+t_test_7_2 <- t.test(betting_rate_bc ~ treatment, data = data_7_2)
+t_test_7_2_out <- t_test_report(t_test_7_2)
+```
+
+T-test checking if betting rate in yellow session in the test treatment is different from 0. Participant-level test (N = `r n_7_1`). Additionally, shows comparison of betting rate in yellow between control and test treatment through two-sample t-test.
+
+The t-test investigating whether betting rate in yellow in test was different from 0 was significant at, `r t_test_7_1_out`.
+
+The t-test comparing betting in yellow between the control and test treatment was also significant, showing that betting rate was on average higher in test compared to control treatment (`r t_test_7_2_out`). This test was run on Box-Cox transformed data with lambda = `r bc_72_lambda`.
+
+```{r treat_all_setup, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_plot_t <- data_7_2 %>%
+  group_by(treatment) %>%
+  summarize(se = se(betting_rate_bc),
+            betting_rate_bc = mean(betting_rate_bc)) %>%
+  ungroup %>%
+  mutate(treatment = factor(treatment, levels = c('control', 'test'),
+                             labels = c('Control', 'Test')))
+
+p_treat <- t_test_7_2$p.value
+p_treat <- if_else(p_treat < .001, '***',
+                   if_else(p_treat < .01, '**',
+                           if_else(p_treat < .05, '*', 'n.s.')))
+
+cap_treat_all <- paste0('Average betting rate in yellow sessions for control and test treatment ', '(', t_test_7_2_out, ').')
+```
+
+```{r treat_all_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap=cap_treat_all}
+ggplot(data_plot_t, aes(x = treatment, y = betting_rate_bc)) +
+  geom_bar(stat='identity', position = position_dodge(.9), fill = '#ffd700',
+           width = 0.6) +
+  geom_errorbar(aes(ymin = betting_rate_bc - se, ymax = betting_rate_bc + se),
+                position = position_dodge(.9), width = .1) +
+  scale_x_discrete(name = '', breaks = c('Control', 'Test')) +
+  scale_y_continuous(name = 'Betting rate (Box-Cox corrected)') +
+  theme_minimal() +
+  theme(axis.title = element_text(size = 14),
+        axis.text = element_text(size = 12),
+        legend.title = element_text(size = 14),
+        legend.text = element_text(size = 12),
+        strip.text = element_text(size = 14)) +
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor = element_blank()) +
+  geom_signif(comparisons = list(c('Control', 'Test')),
+              map_signif_level = TRUE,
+              annotations = c(p_treat),
+              margin_top = 0.2)
+```
 
 # Figures
 
