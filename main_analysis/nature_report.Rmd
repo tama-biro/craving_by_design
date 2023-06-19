@@ -7,6 +7,7 @@ output:
   html_document:
     df_print: paged
   word_document: default
+always_allow_html: true
 ---
 
 \newpage
@@ -21,7 +22,7 @@ One participant had fewer than 630 total trials (total of 455 trials remained in
 knitr::opts_chunk$set(echo = TRUE, fig.pos = "H")
 options(knitr.table.format = function() {
   if (knitr::is_latex_output())
-    "latex" else "simple"
+    "latex" else "pipe"
 })
 ```
 
@@ -40,7 +41,7 @@ suppressMessages({
 })
 suppressWarnings(library(kableExtra))
 
-setwd('C:/Users/SamuelThelaus/Documents/GitHub/craving_by_design/main_analysis')
+setwd('C:/Users/samue/Documents/GitHub/craving_by_design/main_analysis')
 
 # SE function
 se <- function (x) {
@@ -556,6 +557,101 @@ kable(s_3, align = 'c', caption = 'Logistic mixed model predicting betting (0: s
   kable_styling(latex_options = "HOLD_position")
 ```
 
+Next we show the VIF for the model with previous choice and reward exposure. VIF at 1 suggests there is no multicollinearity and VIF >10 suggests problematic collinearity.
+
+```{r log_mod_3_multi_vif, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_3_vif <- data_3[,c('reward_value', 'uncertainty', 'treatment',
+                        'color', 'age', 'gender', 'major',
+                        'sequence_number', 'previous_choice',
+                        'reward_exposure')] %>%
+  mutate(reward_value = as.numeric(reward_value),
+         uncertainty = as.numeric(uncertainty),
+         treatment = as.numeric(treatment),
+         gender = as.numeric(gender),
+         major = as.numeric(major),
+         color = as.numeric(color))
+vif_mod_3_out <- usdm::vif(data_3_vif)
+```
+
+```{r log_mod_3_vif_out, echo=FALSE}
+kable(vif_mod_3_out, align = 'c',
+      caption = 'VIF for variables in test 3.') %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+## Stepwise model-building
+
+This section shows the process of building the models from the theoretical version (in preregistration) to the model shown in the report. Models are built with incrementally more variables and each model is compared using R^2.
+
+```{r log_mod_3_step_build, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+log_mod_3_1 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major + (1 | id),
+                    fixef.prior = t, data = data_3,
+                    family = binomial(link = "logit"))
+
+log_mod_3_2 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major +
+                        sequence_number + (1 | id),
+                    fixef.prior = t, data = data_3,
+                    family = binomial(link = "logit"))
+
+log_mod_3_3 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major +
+                        sequence_number + previous_choice + (1 | id),
+                    fixef.prior = t, data = data_3,
+                    family = binomial(link = "logit"))
+
+log_mod_3_4 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major +
+                        sequence_number + previous_choice +
+                        reward_exposure + (1 | id),
+                    fixef.prior = t, data = data_3,
+                    family = binomial(link = "logit"))
+
+s_3_1 <- glmer_report(log_mod_3_1)
+s_3_2 <- glmer_report(log_mod_3_2)
+s_3_3 <- glmer_report(log_mod_3_3)
+s_3_4 <- glmer_report(log_mod_3_4)
+```
+
+```{r log_mod_3_step_combine, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+colnames(s_3_1) <- c('Variable', '(1)')
+colnames(s_3_2) <- c('Variable', '(2)')
+colnames(s_3_3) <- c('Variable', '(3)')
+colnames(s_3_4) <- c('Variable', '(4)')
+
+s_3_pcr <- c('R^2',
+             round(r2_nakagawa(log_mod_3_1)$R2_conditional, 3),
+             round(r2_nakagawa(log_mod_3_2)$R2_conditional, 3),
+             round(r2_nakagawa(log_mod_3_3)$R2_conditional, 3),
+             round(r2_nakagawa(log_mod_3_4)$R2_conditional, 3))
+s_3_pcn <- c('N',
+             summary(log_mod_3_1)$devcomp$dims[1],
+             summary(log_mod_3_2)$devcomp$dims[1],
+             summary(log_mod_3_3)$devcomp$dims[1],
+             summary(log_mod_3_4)$devcomp$dims[1])
+
+s_3_step <- s_3_1 %>%
+  right_join(s_3_2) %>%
+  right_join(s_3_3) %>%
+  right_join(s_3_4) %>%
+  replace_na(list('Variable' = '-',
+                  '(1)' = '-',
+                  '(2)' = '-',
+                  '(3)' = '-',
+                  '(4)' = '-')) %>%
+  rbind(rep('-', 5)) %>%
+  rbind(s_3_pcr) %>%
+  rbind(s_3_pcn)
+```
+
+```{r log_mod_3_step_out, echo=FALSE}
+kable(s_3_step, align = 'c',
+      caption = 'Stepwise comparison of models being built from theoretical base (1) to best fitting model (4). Noteworthy is that model (3) is the model from test 2.') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
 \newpage
 
 # Test 4
@@ -600,7 +696,7 @@ s_4_log_tab <- s_4_log %>%
   rbind(s_4_n_log)
 ```
 
-Linear model showed following F-statistic: `r f_test``
+Linear model showed following F-statistic: `r f_s4_lin`.
 
 ```{r lin_mod_4_out, echo=FALSE}
 kable(s_4_lin_tab, align = 'c', caption = 'Linear model predicting betting rates in yellow for all participants. Main variable is the treatment effect (0: control, 1: test). Controls not shown were age, gender, major, and sequence number.') %>%
@@ -653,21 +749,159 @@ s_5_n <- c('N', summary(log_mod_5)$devcomp$dims[1])
 s_5 <- s_5 %>%
   rbind(s_5_r) %>%
   rbind(s_5_n)
-
-data_5_vif <- data_5[,c('reward_value', 'uncertainty', 'treatment',
-                        'age', 'gender', 'major', 'sequence_number',
-                        'previous_choice')] %>%
-  mutate(reward_value = as.numeric(reward_value),
-         uncertainty = as.numeric(uncertainty),
-         treatment = as.numeric(treatment),
-         gender = as.numeric(gender),
-         major = as.numeric(major))
-usdm::vif(data_5_vif)
 ```
 
 ``` {r log_mod_5_out, echo=FALSE}
 kable(s_5, align = 'c', caption = 'Logistic mixed effects model predicting betting in yellow background sessions for cravers (bet at least twice in yellow). Independent variables were reward value (0: low, 1: high), uncertainty (0: low, 1: high), treatment (0: control, 1: test), and previous choice (0: skip, 1: bet). Controls not shown were age, gender, major, and sequence number.') %>%
   kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+## Test 5 with reward exposure and previous choice
+
+```{r log_mod_5_multi, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_5_multi <- data %>%
+  filter(block_type == "C" & craver_2 == 1) %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reward_exposure = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_5_multi <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                            age + gender + major + sequence_number +
+                            previous_choice + reward_exposure + (1 | id),
+                          data = data_5_multi, fixef.prior = t,
+                          family = binomial(link = "logit"))
+
+s_5_multi <- glmer_report(log_mod_5_multi)
+
+s_5_multi_r <- c('Nakagawa R^2', round(r2_nakagawa(log_mod_5_multi)$R2_conditional, 3))
+s_5_multi_n <- c('N', summary(log_mod_5_multi)$devcomp$dims[1])
+
+s_5_multi <- s_5_multi %>%
+  rbind(s_5_multi_r) %>%
+  rbind(s_5_multi_n)
+```
+
+```{r log_mod_5_out_multi, echo=FALSE}
+kable(s_5_multi, align = 'c',
+      caption = 'Test 5 with previous choice and reward history.') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+Next we show the VIF for the model with previous choice and reward exposure. VIF at 1 suggests there is no multicollinearity and VIF >10 suggests problematic collinearity.
+
+```{r log_mod_5_multi_vif, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_5_multi_vif <- data_5_multi[,c('reward_value', 'uncertainty', 'treatment',
+                                    'age', 'gender', 'major',
+                                    'sequence_number', 'previous_choice',
+                                    'reward_exposure')] %>%
+  mutate(reward_value = as.numeric(reward_value),
+         uncertainty = as.numeric(uncertainty),
+         treatment = as.numeric(treatment),
+         gender = as.numeric(gender),
+         major = as.numeric(major))
+vif_mod_5_out <- usdm::vif(data_5_multi_vif)
+```
+
+```{r log_mod_5_vif_out, echo=FALSE}
+kable(vif_mod_5_out, align = 'c',
+      caption = 'VIF for variables in test 5 with reward exposure included.') %>%
+  kable_styling(latex_options = "HOLD_position")
+```
+
+## Stepwise model-building
+
+This section shows the process of building the models from the theoretical version (in preregistration) to the model shown in the report. Models are built with incrementally more variables and each model is compared using R^2.
+
+```{r log_mod_5_step_build, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+data_5 <- data %>%
+  filter(block_type == "C" & craver_2 == 1) %>%
+  mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
+                               labels = c("Low", "High")),
+         uncertainty = factor(aaron_mood, levels = c("Low", "High"),
+                              labels = c("Low", "High")),
+         treatment = factor(treatment, levels = c("control", "test"),
+                            labels = c("Control", "Test")),
+         age = scale(age),
+         gender = factor(gender),
+         major = factor(major),
+         reward_exposure = scale(exposure_time),
+         reaction_time = scale(reaction_time),
+         sequence_number = scale(sequence_number))
+
+log_mod_5_1 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                      age + gender + major + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+log_mod_5_2 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                      age + gender + major + sequence_number + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+log_mod_5_3 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                      age + gender + major + sequence_number +
+                        previous_choice + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+log_mod_5_4 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+                      age + gender + major + sequence_number +
+                        previous_choice + reward_exposure + (1 | id),
+                    data = data_5, fixef.prior = t,
+                    family = binomial(link = "logit"))
+
+s_5_1 <- glmer_report(log_mod_5_1)
+s_5_2 <- glmer_report(log_mod_5_2)
+s_5_3 <- glmer_report(log_mod_5_3)
+s_5_4 <- glmer_report(log_mod_5_4)
+```
+
+```{r log_mod_5_step_combine, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+colnames(s_5_1) <- c('Variable', '(1)')
+colnames(s_5_2) <- c('Variable', '(2)')
+colnames(s_5_3) <- c('Variable', '(3)')
+colnames(s_5_4) <- c('Variable', '(4)')
+
+s_5_pcr <- c('R^2',
+             round(r2_nakagawa(log_mod_5_1)$R2_conditional, 3),
+             round(r2_nakagawa(log_mod_5_2)$R2_conditional, 3),
+             round(r2_nakagawa(log_mod_5_3)$R2_conditional, 3),
+             round(r2_nakagawa(log_mod_5_4)$R2_conditional, 3))
+s_5_pcn <- c('N',
+             summary(log_mod_5_1)$devcomp$dims[1],
+             summary(log_mod_5_2)$devcomp$dims[1],
+             summary(log_mod_5_3)$devcomp$dims[1],
+             summary(log_mod_5_4)$devcomp$dims[1])
+
+s_5_step <- s_5_1 %>%
+  right_join(s_5_2) %>%
+  right_join(s_5_3) %>%
+  right_join(s_5_4) %>%
+  replace_na(list('Variable' = '-',
+                  '(1)' = '-',
+                  '(2)' = '-',
+                  '(3)' = '-',
+                  '(4)' = '-')) %>%
+  rbind(rep('-', 5)) %>%
+  rbind(s_5_pcr) %>%
+  rbind(s_5_pcn)
+```
+
+```{r log_mod_5_step_out, echo=FALSE}
+kable(s_5_step, align = 'c',
+      caption = 'Stepwise comparison of models being built from theoretical base (1) to best fitting model (4).') %>%
+  kableExtra::footnote(general = "*p < .05, **p < .01, **p < .001") %>%
   kable_styling(latex_options = "HOLD_position")
 ```
 
