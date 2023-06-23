@@ -351,6 +351,34 @@ table_s3 <- data.frame(craving_definition = c('Bet in yellow', 'At least twice i
 colnames(table_s3) <- c('Craving definition', 'Test', 'Control', 'Total')
 
 # Betting rate in blue
+betting_stats_blue_c <- data %>%
+  filter(block_type == "S" & treatment == 'control') %>%
+  group_by(id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  psych::describe()
+
+betting_stats_blue_c_sub <- betting_stats_blue_c['betting_rate',
+                                                 c('n', 'mean', 'median', 'sd',
+                                                   'min', 'max', 'skew')] %>%
+  round(3) %>%
+  t
+colnames(betting_stats_blue_c_sub) <- 'Control'
+
+betting_stats_blue_t <- data %>%
+  filter(block_type == "S" & treatment == 'test') %>%
+  group_by(id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  psych::describe()
+
+betting_stats_blue_t_sub <- betting_stats_blue_t['betting_rate',
+                                                 c('n', 'mean', 'median', 'sd',
+                                                   'min', 'max', 'skew')] %>%
+  round(3) %>%
+  t
+colnames(betting_stats_blue_t_sub) <- 'Test'
+
 betting_stats_blue <- data %>%
   filter(block_type == "S") %>%
   group_by(id) %>%
@@ -363,9 +391,37 @@ betting_stats_blue_sub <- betting_stats_blue['betting_rate',
                                                'min', 'max', 'skew')] %>%
   round(3) %>%
   t
-colnames(betting_stats_blue_sub) <- 'Blue'
+colnames(betting_stats_blue_sub) <- 'Total'
 
 # Betting rate in yellow
+betting_stats_yellow_c <- data %>%
+  filter(block_type == "C" & treatment == 'control') %>%
+  group_by(id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  psych::describe()
+
+betting_stats_yellow_c_sub <- betting_stats_yellow_c['betting_rate',
+                                                     c('n', 'mean', 'median', 'sd',
+                                                       'min', 'max', 'skew')] %>%
+  round(3) %>%
+  t
+colnames(betting_stats_yellow_c_sub) <- 'Control'
+
+betting_stats_yellow_t <- data %>%
+  filter(block_type == "C" & treatment == 'test') %>%
+  group_by(id) %>%
+  summarize(betting_rate = mean(choice)) %>%
+  ungroup %>%
+  psych::describe()
+
+betting_stats_yellow_t_sub <- betting_stats_yellow_t['betting_rate',
+                                                     c('n', 'mean', 'median', 'sd',
+                                                       'min', 'max', 'skew')] %>%
+  round(3) %>%
+  t
+colnames(betting_stats_yellow_t_sub) <- 'Test'
+
 betting_stats_yellow <- data %>%
   filter(block_type == "C") %>%
   group_by(id) %>%
@@ -378,11 +434,22 @@ betting_stats_yellow_sub <- betting_stats_yellow['betting_rate',
                                                    'min', 'max', 'skew')] %>%
   round(3) %>%
   t
-colnames(betting_stats_yellow_sub) <- 'Yellow'
+colnames(betting_stats_yellow_sub) <- 'Total'
 
-table_s4 <- betting_stats_blue_sub %>%
-  cbind(betting_stats_yellow_sub) %>%
+top_row <- c('', 'Blue', '', '', 'Yellow', '')
+
+table_s4 <- betting_stats_blue_c_sub %>%
+  cbind(betting_stats_blue_t_sub, betting_stats_blue_sub, betting_stats_yellow_c_sub,
+        betting_stats_yellow_t_sub, betting_stats_yellow_sub) %>%
   as.data.frame()
+
+cols_treat <- colnames(table_s4)
+
+table_s4 <- cols_treat %>%
+  rbind(table_s4)
+
+colnames(table_s4) <- c('', 'Blue', '', '', 'Yellow', '')
+rownames(table_s4) <- c('', 'N', 'Mean', 'Median', 'SD', 'Min', 'Max', 'Skew')
 ```
 
 # Descriptive statistics
@@ -454,6 +521,13 @@ t_test_1 <- t.test(betting_rate_bc ~ reward_value, data = data_1,
                    alternative = 'less', paired = TRUE)
 t_test_1 <- t_test_report(t_test_1)
 
+effect_size_t_1 <- (
+  (mean(data_1$betting_rate_bc[data_1$reward_value == 'High']) - mean(data_1$betting_rate_bc[data_1$reward_value == 'Low']))/
+    sqrt(
+      (sd(data_1$betting_rate_bc[data_1$reward_value == 'High'])^2 - sd(data_1$betting_rate_bc[data_1$reward_value == 'Low'])^2)/2
+    )
+)
+
 # Non-parametric
 wilcox_1 <- wilcox.test(betting_rate ~ reward_value, data = data_1,
                         alternative = 'less', paired = TRUE)
@@ -466,11 +540,11 @@ Participant-level test (N = `r n`).
 
 Data was skewed at `r skew_1_bf` (ideal values within [-1, 1]) and a Shapiro-Wilks test showed `r shap_1_bf`. Data were Box-Cox transformed with lambda = `r bc_1_lambda`. This reduced skew to `r skew_1_af` (acceptable value), but SW test still showed `r shap_1_af`.
 
-Paired t-test using Box-Cox transformed data showed higher betting rate in high reward sessions (`r t_test_1`). Non-parametric paired Wilcoxon test using non-transformed data showed qualitatively same results (`r wilcox_1`).
+Paired t-test using Box-Cox transformed data showed higher betting rate in high reward sessions (`r t_test_1`, Cohen's D = `r effect_size_t_1`). Non-parametric paired Wilcoxon test using non-transformed data showed qualitatively same results (`r wilcox_1`).
 
 \newpage
 
-# Test 2
+# Test 2 & 3
 
 ```{r log_mod_2, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_2 <- data %>%
@@ -490,33 +564,12 @@ data_2 <- data %>%
 
 log_mod_2 <- bglmer(choice ~ reward_value + uncertainty +
                       treatment * color + previous_choice + age + gender +
-                      major + sequence_number + (1 | id),
+                      major + sequence_number + reaction_time + (1 | id),
                     fixef.prior = t, data = data_2,
                     family = binomial(link = "logit"))
 
 s_2 <- glmer_report(log_mod_2)
 
-s_2_r <- c('R^2', round(r2_nakagawa(log_mod_2)$R2_conditional, 3))
-s_2_n <- c('N', summary(log_mod_2)$devcomp$dims[1])
-
-s_2 <- s_2 %>%
-  rbind(s_2_r) %>%
-  rbind(s_2_n)
-```
-
-Logistic mixed effects model predicting betting, with independent variables: potential reward value in the session, uncertainty level in the session, a dummy for treatment (reference: treatment C), a dummy for session colour (reference: blue), the interaction of treatment and session colour, and several control variables (which include the previous decision, to control for choice inertia/stickiness).
-
-```{r log_mod_2_out, echo=FALSE}
-kable(s_2, align = 'c', caption = 'Logistic mixed model predicting betting (0: skip, 1: bet) for all participants in all trials. Variables are reward value (0: low, 1: high), uncertainty (0: low, 1: high), treatment (0: control, 1: test), session color (0: blue, 1: yellow), previous choice (0: skip, 1: bet), and the interaction between session color and treatment. Controls not shown were age, gender, major, and sequence number.') %>%
-  kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
-  kable_styling(latex_options = "HOLD_position")
-```
-
-\newpage
-
-# Test 3
-
-```{r log_mod_3, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_3 <- data %>%
   mutate(reward_value = factor(reward_value, levels = c("Low", "High"),
                                labels = c("Low", "High")),
@@ -535,33 +588,48 @@ data_3 <- data %>%
 
 log_mod_3 <- bglmer(choice ~ reward_value + uncertainty +
                       treatment * color + previous_choice + reward_exposure +
-                      age + gender + major + sequence_number + (1 | id),
-                    fixef.prior = t, data = data_3,
+                      age + gender + major + sequence_number + reaction_time +
+                      (1 | id), fixef.prior = t, data = data_3,
                     family = binomial(link = "logit"))
 
 s_3 <- glmer_report(log_mod_3)
-
-s_3_r <- c('Nakagawa R^2', round(r2_nakagawa(log_mod_3)$R2_conditional, 3))
-s_3_n <- c('N', summary(log_mod_3)$devcomp$dims[1])
-
-s_3 <- s_3 %>%
-  rbind(s_3_r) %>%
-  rbind(s_3_n)
 ```
 
-Logistic mixed effects model predicting betting, with independent variables: potential reward value in the session, uncertainty level in the session, a dummy for treatment (reference: treatment C), a dummy for session colour (reference: blue), the previous decision, and reward exposure, which is the discounted sum of prior rewards as defined in our computational model (more below). The main variable of interest is the reward exposure variable. We expect it to be significantly positive (Prediction 2).
+Logistic mixed effects model predicting betting, with independent variables: potential reward value in the session, uncertainty level in the session, a dummy for treatment (reference: treatment C), a dummy for session colour (reference: blue), the interaction of treatment and session colour, and several control variables (which include the previous decision, to control for choice inertia/stickiness).
 
-```{r log_mod_3_out, echo=FALSE}
-kable(s_3, align = 'c', caption = 'Logistic mixed model predicting betting (0: skip, 1: bet) for all participants in all trials. Variables are reward value (0: low, 1: high), uncertainty (0: low, 1: high), treatment (0: control, 1: test), session color (0: blue, 1: yellow), previous choice (0: skip, 1: bet), reward exposure, and the interaction between session color and treatment. Controls not shown were age, gender, major, and sequence number.') %>%
+Test 3 is the same model with reward exposure added as a variable.
+
+```{r}
+colnames(s_2) <- c('Variable', '(1)')
+colnames(s_3) <- c('Variable', '(2)')
+
+s_23_r <- c('R^2',
+            round(r2_nakagawa(log_mod_2)$R2_conditional, 3),
+            round(r2_nakagawa(log_mod_3)$R2_conditional, 3))
+s_23_n <- c('N',
+            summary(log_mod_2)$devcomp$dims[1],
+            summary(log_mod_3)$devcomp$dims[1])
+
+s_23 <- s_2 %>%
+  right_join(s_3, by = "Variable") %>%
+  replace_na(list('Variable' = '-',
+                  '(1)' = '-',
+                  '(2)' = '-')) %>%
+  rbind(s_23_r) %>%
+  rbind(s_23_n)
+```
+
+```{r log_mod_2_out, echo=FALSE}
+kable(s_23, align = 'c', caption = 'Logistic mixed model predicting betting (0: skip, 1: bet) for all participants in all trials. Variables are reward value (0: low, 1: high), uncertainty (0: low, 1: high), treatment (0: control, 1: test), session color (0: blue, 1: yellow), previous choice (0: skip, 1: bet), and the interaction between session color and treatment. Controls not shown were age, gender, major, and sequence number. Model 1 (1) is the model described and model 2 (2) is the model with reward exposure added.') %>%
   kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
   kable_styling(latex_options = "HOLD_position")
 ```
 
-Next we show the VIF for the model with previous choice and reward exposure. VIF at 1 suggests there is no multicollinearity and VIF >10 suggests problematic collinearity.
+Next we show the VIF for the model (2) with previous choice and reward exposure. VIF at 1 suggests there is no multicollinearity and VIF >10 suggests problematic collinearity.
 
 ```{r log_mod_3_multi_vif, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_3_vif <- data_3[,c('reward_value', 'uncertainty', 'treatment',
-                        'color', 'age', 'gender', 'major',
+                        'color', 'age', 'gender', 'major', 'reaction_time',
                         'sequence_number', 'previous_choice',
                         'reward_exposure')] %>%
   mutate(reward_value = as.numeric(reward_value),
@@ -597,13 +665,19 @@ log_mod_3_2 <- bglmer(choice ~ reward_value + uncertainty +
 
 log_mod_3_3 <- bglmer(choice ~ reward_value + uncertainty +
                       treatment * color + age + gender + major +
-                        sequence_number + previous_choice + (1 | id),
+                        sequence_number + reaction_time + (1 | id),
                     fixef.prior = t, data = data_3,
                     family = binomial(link = "logit"))
 
 log_mod_3_4 <- bglmer(choice ~ reward_value + uncertainty +
                       treatment * color + age + gender + major +
-                        sequence_number + previous_choice +
+                        sequence_number + reaction_time + previous_choice +
+                        (1 | id), fixef.prior = t, data = data_3,
+                    family = binomial(link = "logit"))
+
+log_mod_3_5 <- bglmer(choice ~ reward_value + uncertainty +
+                      treatment * color + age + gender + major +
+                        sequence_number + reaction_time + previous_choice +
                         reward_exposure + (1 | id),
                     fixef.prior = t, data = data_3,
                     family = binomial(link = "logit"))
@@ -612,6 +686,7 @@ s_3_1 <- glmer_report(log_mod_3_1)
 s_3_2 <- glmer_report(log_mod_3_2)
 s_3_3 <- glmer_report(log_mod_3_3)
 s_3_4 <- glmer_report(log_mod_3_4)
+s_3_5 <- glmer_report(log_mod_3_5)
 ```
 
 ```{r log_mod_3_step_combine, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
@@ -619,22 +694,26 @@ colnames(s_3_1) <- c('Variable', '(1)')
 colnames(s_3_2) <- c('Variable', '(2)')
 colnames(s_3_3) <- c('Variable', '(3)')
 colnames(s_3_4) <- c('Variable', '(4)')
+colnames(s_3_5) <- c('Variable', '(5)')
 
 s_3_pcr <- c('R^2',
              round(r2_nakagawa(log_mod_3_1)$R2_conditional, 3),
              round(r2_nakagawa(log_mod_3_2)$R2_conditional, 3),
              round(r2_nakagawa(log_mod_3_3)$R2_conditional, 3),
-             round(r2_nakagawa(log_mod_3_4)$R2_conditional, 3))
+             round(r2_nakagawa(log_mod_3_4)$R2_conditional, 3),
+             round(r2_nakagawa(log_mod_3_5)$R2_conditional, 3))
 s_3_pcn <- c('N',
              summary(log_mod_3_1)$devcomp$dims[1],
              summary(log_mod_3_2)$devcomp$dims[1],
              summary(log_mod_3_3)$devcomp$dims[1],
-             summary(log_mod_3_4)$devcomp$dims[1])
+             summary(log_mod_3_4)$devcomp$dims[1],
+             summary(log_mod_3_5)$devcomp$dims[1])
 
 s_3_step <- s_3_1 %>%
   right_join(s_3_2) %>%
   right_join(s_3_3) %>%
   right_join(s_3_4) %>%
+  right_join(s_3_5) %>%
   replace_na(list('Variable' = '-',
                   '(1)' = '-',
                   '(2)' = '-',
@@ -659,6 +738,30 @@ kable(s_3_step, align = 'c',
 Linear regression using as dependent variable participant betting rate in yellow (proxy for craving). We will also run a logistic regression using as dependent variable participant type (0: non craver; 1: craver). A craver is defined as a participant who chooses to bet at least twice across the yellow background sessions during the task.†† The independent variables will include a dummy code for treatment (reference: treatment C) and several control variables which include participant accuracy at the post-yellow-sessions lotteries (to control for the aforementioned miswanting aspect of behaviour). Our main variable of interest is the treatment variable: we expect a significantly positive coefficient on that variable (Prediction 3).
 
 ```{r lin_log_4, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
+accuracy_other <- data %>%
+  filter(craver_2 == 0) %>%
+  group_by(id) %>%
+  slice_head(n = 1) %>%
+  ungroup %>%
+  mutate(accuracy = 1) %>%
+  select(id, accuracy)
+
+accuracy_cravers <- data %>%
+  filter(craver_2 == 1) %>%
+  group_by(id) %>%
+  slice_head(n = 1) %>%
+  mutate(odds_1_correct = if_else(odds_guess_one_reply == 2, 1, 0),
+         odds_2_correct = if_else(is.na(odds_guess_two_reply), 1,
+                                  if_else(odds_guess_two_reply %in% c(2, 4), 1, 0)),
+         odds_3_correct = if_else(is.na(odds_guess_three_reply), 1,
+                                  if_else(odds_guess_three_reply %in% c(2, 4), 1, 0)),
+         accuracy = mean(c(odds_1_correct, odds_2_correct, odds_3_correct))) %>%
+  ungroup %>%
+  select(id, accuracy)
+
+accuracy_data <- accuracy_other %>%
+  rbind(accuracy_cravers)
+
 data_4 <- data %>%
   filter(block_type == "C") %>%
   group_by(id, treatment, age, gender, major, craver_2) %>%
@@ -670,9 +773,10 @@ data_4 <- data %>%
          gender = factor(gender),
          major = factor(major),
          craver = factor(craver_2, levels = 0:1,
-                         labels = c('Non-craver', 'Craver')))
+                         labels = c('Non-craver', 'Craver'))) %>%
+  right_join(accuracy_data, by = "id")
 
-lin_mod_4 <- lm(betting_rate ~ treatment + age + gender + major,
+lin_mod_4 <- lm(betting_rate ~ treatment + age + gender + major + accuracy,
                 data = data_4)
 s_4_lin <- lm_report(lin_mod_4)
 f_s4_lin <- s_4_lin$f_test
@@ -684,7 +788,7 @@ s_4_lin_tab <- s_4_lin_tab %>%
   rbind(s_4_r_lin) %>%
   rbind(s_4_n_lin)
 
-log_mod_4 <- glm(craver ~ treatment + age + gender + major,
+log_mod_4 <- glm(craver ~ treatment + age + gender + major + accuracy,
                 data = data_4, family = binomial(link = "logit"))
 s_4_log <- glm_report(log_mod_4)
 
@@ -735,7 +839,7 @@ data_5 <- data %>%
          reaction_time = scale(reaction_time),
          sequence_number = scale(sequence_number))
 
-log_mod_5 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+log_mod_5 <- bglmer(choice ~ reward_value + uncertainty * treatment +
                       age + gender + major + sequence_number +
                       previous_choice + (1 | id),
                     data = data_5, fixef.prior = t,
@@ -752,7 +856,7 @@ s_5 <- s_5 %>%
 ```
 
 ``` {r log_mod_5_out, echo=FALSE}
-kable(s_5, align = 'c', caption = 'Logistic mixed effects model predicting betting in yellow background sessions for cravers (bet at least twice in yellow). Independent variables were reward value (0: low, 1: high), uncertainty (0: low, 1: high), treatment (0: control, 1: test), and previous choice (0: skip, 1: bet). Controls not shown were age, gender, major, and sequence number.') %>%
+kable(s_5, align = 'c', caption = 'Logistic mixed effects model predicting betting in yellow background sessions for cravers (bet at least twice in yellow). Independent variables were reward value (0: low, 1: high), uncertainty (0: low, 1: high), treatment (0: control, 1: test), and previous choice (0: skip, 1: bet), and the interaction between uncertainty and treatment. Controls not shown were age, gender, major, and sequence number.') %>%
   kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
   kable_styling(latex_options = "HOLD_position")
 ```
@@ -775,7 +879,7 @@ data_5_multi <- data %>%
          reaction_time = scale(reaction_time),
          sequence_number = scale(sequence_number))
 
-log_mod_5_multi <- bglmer(choice ~ reward_value + uncertainty + treatment +
+log_mod_5_multi <- bglmer(choice ~ reward_value + uncertainty * treatment +
                             age + gender + major + sequence_number +
                             previous_choice + reward_exposure + (1 | id),
                           data = data_5_multi, fixef.prior = t,
@@ -793,7 +897,7 @@ s_5_multi <- s_5_multi %>%
 
 ```{r log_mod_5_out_multi, echo=FALSE}
 kable(s_5_multi, align = 'c',
-      caption = 'Test 5 with previous choice and reward history.') %>%
+      caption = 'Test 5 with previous choice and reward exposure.') %>%
   kableExtra::footnote(general = "*p < .05, **p < .01, ***p < .001") %>%
   kable_styling(latex_options = "HOLD_position")
 ```
@@ -839,23 +943,23 @@ data_5 <- data %>%
          reaction_time = scale(reaction_time),
          sequence_number = scale(sequence_number))
 
-log_mod_5_1 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+log_mod_5_1 <- bglmer(choice ~ reward_value + uncertainty * treatment +
                       age + gender + major + (1 | id),
                     data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
-log_mod_5_2 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+log_mod_5_2 <- bglmer(choice ~ reward_value + uncertainty * treatment +
                       age + gender + major + sequence_number + (1 | id),
                     data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
-log_mod_5_3 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+log_mod_5_3 <- bglmer(choice ~ reward_value + uncertainty * treatment +
                       age + gender + major + sequence_number +
                         previous_choice + (1 | id),
                     data = data_5, fixef.prior = t,
                     family = binomial(link = "logit"))
 
-log_mod_5_4 <- bglmer(choice ~ reward_value + uncertainty + treatment +
+log_mod_5_4 <- bglmer(choice ~ reward_value + uncertainty * treatment +
                       age + gender + major + sequence_number +
                         previous_choice + reward_exposure + (1 | id),
                     data = data_5, fixef.prior = t,
@@ -947,6 +1051,13 @@ t_test_6 <- t.test(betting_rate_bc ~ uncertainty, data = data_6,
                    alternative = 'less', paired = TRUE)
 t_test_6_out <- t_test_report(t_test_6)
 
+effect_size_t_6 <- (
+  (mean(data_6$betting_rate_bc[data_6$uncertainty == 'High']) - mean(data_6$betting_rate_bc[data_6$uncertainty == 'Low']))/
+    sqrt(
+      (sd(data_6$betting_rate_bc[data_6$uncertainty == 'High'])^2 - sd(data_6$betting_rate_bc[data_6$uncertainty == 'Low'])^2)/2
+    )
+)
+
 # Non-parametric
 wilcox_6 <- wilcox.test(betting_rate ~ uncertainty, data = data_6,
                         alternative = 'less', paired = TRUE)
@@ -959,7 +1070,7 @@ Participant-level test (N = `r n`).
 
 Data was skewed at `r skew_6_bf` (ideal values within [-1, 1]) and a Shapiro-Wilks test showed `r shap_6_bf`. Data were Box-Cox transformed with lambda = `r bc_6_lambda`. This reduced skew to `r skew_6_af` (acceptable value), but SW test still showed `r shap_6_af`.
 
-Paired t-test using Box-Cox transformed data showed higher betting rate in high uncertainty sessions (`r t_test_6_out`). Non-parametric paired Wilcoxon test using non-transformed data showed qualitatively same results (`r wilcox_6`).
+Paired t-test using Box-Cox transformed data showed higher betting rate in high uncertainty sessions (`r t_test_6_out`, Cohen's D = `r effect_size_t_6`). Non-parametric paired Wilcoxon test using non-transformed data showed qualitatively same results (`r wilcox_6`).
 
 ```{r unc_plot_setup, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_plot_u <- data %>%
@@ -1030,6 +1141,8 @@ n_7_1 <- nrow(data_7_1)
 t_test_7_1 <- t.test(data_7_1$betting_rate, mu = 0, alternative = 'greater')
 t_test_7_1_out <- t_test_report(t_test_7_1)
 
+effect_size_t_7_1 <- mean(data_7_1$betting_rate)/sd(data_7_1$betting_rate)
+
 # T-test C vs T in yellow
 data_7_2 <- data %>%
   filter(block_type == "C") %>%
@@ -1045,13 +1158,24 @@ data_7_2$betting_rate_bc <- boxcoxTransform(data_7_2$betting_rate + 1,
 
 t_test_7_2 <- t.test(betting_rate_bc ~ treatment, data = data_7_2)
 t_test_7_2_out <- t_test_report(t_test_7_2)
+
+effect_size_t_7_2 <- (
+  (mean(data_7_2$betting_rate_bc[data_7_2$treatment == 'test']) - mean(data_7_2$betting_rate_bc[data_7_2$treatment == 'control']))/
+    sqrt(
+      (sd(data_7_2$betting_rate_bc[data_7_2$treatment == 'test'])^2 - sd(data_7_2$betting_rate_bc[data_7_2$treatment == 'control'])^2)/2
+    )
+)
+
+# Non-parametric
+wilcox_7_2 <- wilcox.test(betting_rate ~ treatment, data = data_7_2)
+wilcox_7_2 <- wilcox_report(wilcox_7_2)
 ```
 
 T-test checking if betting rate in yellow session in the test treatment is different from 0. Participant-level test (N = `r n_7_1`). Additionally, shows comparison of betting rate in yellow between control and test treatment through two-sample t-test.
 
-The t-test investigating whether betting rate in yellow in test was different from 0 was significant at, `r t_test_7_1_out`.
+The t-test investigating whether betting rate in yellow in test was different from 0 was significant at, `r t_test_7_1_out`, Cohen's D = `r effect_size_t_7_1`.
 
-The t-test comparing betting in yellow between the control and test treatment was also significant, showing that betting rate was on average higher in test compared to control treatment (`r t_test_7_2_out`). This test was run on Box-Cox transformed data with lambda = `r bc_72_lambda`.
+The t-test comparing betting in yellow between the control and test treatment was also significant, showing that betting rate was on average higher in test compared to control treatment (`r t_test_7_2_out`, Cohen's D = `r effect_size_t_7_2`). This test was run on Box-Cox transformed data with lambda = `r bc_72_lambda`. Non-parametric paired Wilcoxon test using non-transformed data showed qualitatively same results (`r wilcox_7_2`).
 
 ```{r treat_all_setup, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_plot_t <- data_7_2 %>%
@@ -1102,22 +1226,16 @@ data_dists <- data %>%
   summarize(betting_rate = mean(choice, na.rm=TRUE)) %>%
   ungroup
 
-out <- boxcox(data_dists$betting_rate + 1, lambda = seq(-25, 25, by = 0.25))
-bc_dist_lambda <- out$lambda[which.max(out$objective)]
-
-data_dists$betting_rate_bc <- boxcoxTransform(data_dists$betting_rate + 1,
-                                              lambda = bc_dist_lambda)
-
-cap_data_dist <- paste0('Distributions of Box-Cox corrected (lambda = ', bc_dist_lambda,  ') betting rates in blue/yellow background sessions for control/test treatment.')
+cap_data_dist <- 'Distributions of betting rates in blue/yellow background sessions for control/test treatment.'
 ```
 
 ```{r betting_dist_plot_out, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap=cap_data_dist}
-ggplot(data_dists, aes(x = treatment, y = betting_rate_bc, fill = block_type)) +
+ggplot(data_dists, aes(x = treatment, y = betting_rate, fill = block_type)) +
   geom_boxplot() +
   scale_x_discrete(name = '',
                    breaks = c('control', 'test'),
                    labels = c('Control', 'Test')) +
-  scale_y_continuous(name = 'Betting rate (Box-Cox transformed)') +
+  scale_y_continuous(name = 'Betting rate') +
   scale_fill_manual(name = 'Session color',
                     breaks = c('C', 'S'),
                     labels = c('Yellow', 'Blue'),
@@ -1128,7 +1246,8 @@ ggplot(data_dists, aes(x = treatment, y = betting_rate_bc, fill = block_type)) +
         legend.title = element_text(size = 14),
         legend.text = element_text(size = 12),
         strip.text = element_text(size = 14)) +
-  facet_wrap('block_type', nrow = 1, scales = 'free_y')
+  facet_wrap('block_type', nrow = 1, scales = 'free_y') +
+  theme(strip.text.x = element_blank())
 ```
 
 ```{r exp_data, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
@@ -1167,7 +1286,7 @@ data_plot <- data_plot_b %>%
                                 labels = c("(A) Blue", "(B) Yellow")))
 ```
 
-```{r exp_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the blue background sessions (A) and yellow background sessions (B) as a function of prior reward history (as defined in computational model) for all participants and sessions, with reward history split into 3 equally sized bins. Theta is 1.'}
+```{r exp_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap='Betting rate in the blue background sessions (A) and yellow background sessions (B) as a function of prior reward exposure (as defined in computational model) for all participants and sessions, with reward exposure split into 3 equally sized bins. Theta is 1.'}
 ggplot(data_plot, aes(x = exp_bins,
                       y = betting_rate,
                       col = session_color)) +
@@ -1175,7 +1294,7 @@ ggplot(data_plot, aes(x = exp_bins,
   geom_errorbar(aes(ymin = betting_rate - se,
                     ymax = betting_rate + se),
                 width = 0.2) +
-  labs(x = 'Previous reward history', y = 'Betting rate') +
+  labs(x = 'Previous reward exposure', y = 'Betting rate') +
   scale_x_continuous(breaks = 1:3) +
   scale_color_manual(name = 'Session color',
                      breaks = c('(A) Blue', '(B) Yellow'),
