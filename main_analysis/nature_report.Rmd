@@ -41,7 +41,7 @@ suppressMessages({
 })
 suppressWarnings(library(kableExtra))
 
-setwd('C:/Users/samue/Documents/GitHub/craving_by_design/main_analysis')
+setwd('C:/Users/SamuelThelaus/Documents/GitHub/craving_by_design/main_analysis')
 
 # SE function
 se <- function (x) {
@@ -527,6 +527,7 @@ effect_size_t_1 <- (
       (sd(data_1$betting_rate_bc[data_1$reward_value == 'High'])^2 - sd(data_1$betting_rate_bc[data_1$reward_value == 'Low'])^2)/2
     )
 )
+effect_size_t_1 <- round(effect_size_t_1, 3)
 
 # Non-parametric
 wilcox_1 <- wilcox.test(betting_rate ~ reward_value, data = data_1,
@@ -1057,6 +1058,7 @@ effect_size_t_6 <- (
       (sd(data_6$betting_rate_bc[data_6$uncertainty == 'High'])^2 - sd(data_6$betting_rate_bc[data_6$uncertainty == 'Low'])^2)/2
     )
 )
+effect_size_t_6 <- round(effect_size_t_6, 3)
 
 # Non-parametric
 wilcox_6 <- wilcox.test(betting_rate ~ uncertainty, data = data_6,
@@ -1087,8 +1089,8 @@ data_plot_u$betting_rate_bc <- boxcoxTransform(data_plot_u$betting_rate + 1,
 
 data_plot_u <- data_plot_u %>%
   group_by(aaron_mood) %>%
-  summarize(se = se(betting_rate_bc),
-            betting_rate_bc = mean(betting_rate_bc)) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate)) %>%
   ungroup %>%
   mutate(aaron_mood = factor(aaron_mood, levels = c('Low', 'High'),
                              labels = c('Low', 'High')))
@@ -1099,17 +1101,17 @@ p_unc <- if_else(p_unc < .001, '***',
                  if_else(p_unc < .01, '**',
                          if_else(p_unc < .05, '*', 'n.s.')))
 
-cap_unc_all <- paste0('Average betting rate in yellow backround sessions for low and high uncertainty sessions for all participants ', '(', t_test_6_out, ').')
+cap_unc_all <- paste0("Average betting rate in yellow backround sessions for low and high uncertainty sessions for all participants ", "(", t_test_6_out, ", Cohen's D = ", effect_size_t_6, ").")
 ```
 
 ```{r unc_plot_out, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap=cap_unc_all}
-ggplot(data_plot_u, aes(x = aaron_mood, y = betting_rate_bc)) +
+ggplot(data_plot_u, aes(x = aaron_mood, y = betting_rate)) +
   geom_bar(stat='identity', position = position_dodge(.9), fill = '#ffd700',
            width = 0.6) +
-  geom_errorbar(aes(ymin = betting_rate_bc - se, ymax = betting_rate_bc + se),
+  geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
                 position = position_dodge(.9), width = .1) +
   scale_x_discrete(name = '', breaks = c('Low', 'High')) +
-  scale_y_continuous(name = 'Betting rate (Box-Cox corrected)') +
+  scale_y_continuous(name = 'Betting rate') +
   theme_minimal() +
   theme(axis.title = element_text(size = 14),
         axis.text = element_text(size = 12),
@@ -1142,6 +1144,7 @@ t_test_7_1 <- t.test(data_7_1$betting_rate, mu = 0, alternative = 'greater')
 t_test_7_1_out <- t_test_report(t_test_7_1)
 
 effect_size_t_7_1 <- mean(data_7_1$betting_rate)/sd(data_7_1$betting_rate)
+effect_size_t_7_1 <- round(effect_size_t_7_1, 3)
 
 # T-test C vs T in yellow
 data_7_2 <- data %>%
@@ -1165,6 +1168,7 @@ effect_size_t_7_2 <- (
       (sd(data_7_2$betting_rate_bc[data_7_2$treatment == 'test'])^2 - sd(data_7_2$betting_rate_bc[data_7_2$treatment == 'control'])^2)/2
     )
 )
+effect_size_t_7_2 <- round(effect_size_t_7_2, 3)
 
 # Non-parametric
 wilcox_7_2 <- wilcox.test(betting_rate ~ treatment, data = data_7_2)
@@ -1180,8 +1184,8 @@ The t-test comparing betting in yellow between the control and test treatment wa
 ```{r treat_all_setup, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE}
 data_plot_t <- data_7_2 %>%
   group_by(treatment) %>%
-  summarize(se = se(betting_rate_bc),
-            betting_rate_bc = mean(betting_rate_bc)) %>%
+  summarize(se = se(betting_rate),
+            betting_rate = mean(betting_rate)) %>%
   ungroup %>%
   mutate(treatment = factor(treatment, levels = c('control', 'test'),
                              labels = c('Control', 'Test')))
@@ -1191,17 +1195,17 @@ p_treat <- if_else(p_treat < .001, '***',
                    if_else(p_treat < .01, '**',
                            if_else(p_treat < .05, '*', 'n.s.')))
 
-cap_treat_all <- paste0('Average betting rate in yellow sessions for control and test treatment ', '(', t_test_7_2_out, ').')
+cap_treat_all <- paste0("Average betting rate in yellow sessions for control and test treatment ", "(", t_test_7_2_out, ", Cohen's D = ", effect_size_t_7_2, ").")
 ```
 
 ```{r treat_all_plot, echo=FALSE, results=FALSE, message=FALSE, warning=FALSE, fig.height=5, fig.width=8, fig.align='center', include=TRUE, fig.cap=cap_treat_all}
-ggplot(data_plot_t, aes(x = treatment, y = betting_rate_bc)) +
+ggplot(data_plot_t, aes(x = treatment, y = betting_rate)) +
   geom_bar(stat='identity', position = position_dodge(.9), fill = '#ffd700',
            width = 0.6) +
-  geom_errorbar(aes(ymin = betting_rate_bc - se, ymax = betting_rate_bc + se),
+  geom_errorbar(aes(ymin = betting_rate - se, ymax = betting_rate + se),
                 position = position_dodge(.9), width = .1) +
   scale_x_discrete(name = '', breaks = c('Control', 'Test')) +
-  scale_y_continuous(name = 'Betting rate (Box-Cox corrected)') +
+  scale_y_continuous(name = 'Betting rate') +
   theme_minimal() +
   theme(axis.title = element_text(size = 14),
         axis.text = element_text(size = 12),
